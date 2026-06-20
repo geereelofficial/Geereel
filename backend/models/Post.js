@@ -12,6 +12,8 @@ const postSchema = new mongoose.Schema({
   commentsCount: { type: Number, default: 0 },
   sharesCount: { type: Number, default: 0 },
   viewsCount: { type: Number, default: 0 },
+  bookmarksCount: { type: Number, default: 0 },
+  repostsCount: { type: Number, default: 0 },
   durationSeconds: { type: Number, default: 0 },
   width: { type: Number, default: 0 },
   height: { type: Number, default: 0 },

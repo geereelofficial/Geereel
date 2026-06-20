@@ -17,6 +17,13 @@ abstract class PostRepository {
     int limit = AppConstants.feedPageSize,
   });
 
+  /// One reverse-chronological page of posts from accounts the caller
+  /// follows. Empty when following no one.
+  Future<Result<List<PostEntity>>> fetchFollowingFeedPage({
+    DateTime? startAfterCreatedAt,
+    int limit = AppConstants.feedPageSize,
+  });
+
   /// All posts by [authorId], newest first, for the profile grid.
   Future<Result<List<PostEntity>>> fetchUserPosts({
     required String authorId,
@@ -28,6 +35,16 @@ abstract class PostRepository {
   Stream<bool> watchIsLiked({required String postId, required String uid});
 
   Future<Result<void>> toggleLike({required String postId, required String uid});
+
+  /// Live bookmark state of [postId] for [uid], used by the bookmark button.
+  Stream<bool> watchIsBookmarked({required String postId, required String uid});
+
+  Future<Result<void>> toggleBookmark({required String postId, required String uid});
+
+  /// Live repost state of [postId] for [uid], used by the repost button.
+  Stream<bool> watchIsReposted({required String postId, required String uid});
+
+  Future<Result<void>> toggleRepost({required String postId, required String uid});
 
   Future<Result<void>> incrementShareCount(String postId);
 

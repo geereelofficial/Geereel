@@ -97,6 +97,45 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  @override
+  Future<Result<void>> followUser(String targetUid) async {
+    try {
+      await _remote.followUser(targetUid);
+      return const Ok(null);
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> unfollowUser(String targetUid) async {
+    try {
+      await _remote.unfollowUser(targetUid);
+      return const Ok(null);
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
+  Future<Result<bool>> isFollowing(String targetUid) async {
+    try {
+      return Ok(await _remote.isFollowing(targetUid));
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
+  Future<Result<List<UserEntity>>> searchUsers(String query) async {
+    try {
+      final models = await _remote.searchUsers(query);
+      return Ok(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
   Failure _mapToFailure(Object error) {
     if (error is AuthException) return AuthFailure(error.message);
     if (error is NetworkException) return NetworkFailure(error.message);

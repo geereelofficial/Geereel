@@ -1,9 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_text_styles.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/post_entity.dart';
+import '../providers/feed_providers.dart';
 import 'feed_action_buttons.dart';
 
 /// One full-screen page of the feed: the media (video or image) plus the
@@ -57,7 +60,15 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
             left: 16,
             right: 88,
             bottom: 24,
-            child: _PostInfo(post: widget.post),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _RepostButton(post: widget.post),
+                const SizedBox(height: 10),
+                _PostInfo(post: widget.post),
+              ],
+            ),
           ),
           Positioned(
             right: 12,
@@ -114,6 +125,49 @@ class _BottomGradient extends StatelessWidget {
             colors: [Colors.transparent, AppColors.overlay],
             stops: [0.6, 1.0],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Repost pill, positioned above the username/caption like TikTok's repost
+/// affordance. Filled with [AppColors.secondary] once reposted, matching the
+/// Follow button's solid-color style.
+class _RepostButton extends ConsumerWidget {
+  final PostEntity post;
+
+  const _RepostButton({required this.post});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repostProvider = repostControllerProvider(post.postId, post.repostsCount);
+    final repostState = ref.watch(repostProvider).value;
+    final isReposted = repostState?.$1 ?? false;
+    final repostCount = repostState?.$2 ?? post.repostsCount;
+
+    return GestureDetector(
+      onTap: () => ref.read(repostProvider.notifier).toggle(),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isReposted ? AppColors.secondary : Colors.black.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.repeat, color: Colors.white, size: 16),
+            const SizedBox(width: 6),
+            Text(
+              isReposted
+                  ? 'Reposted${repostCount > 0 ? ' · ${Formatters.compactCount(repostCount)}' : ''}'
+                  : 'Repost',
+              style: AppTextStyles.caption.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+          ],
         ),
       ),
     );

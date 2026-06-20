@@ -22,6 +22,8 @@ abstract class PostEntity with _$PostEntity {
     @Default(0) int commentsCount,
     @Default(0) int sharesCount,
     @Default(0) int viewsCount,
+    @Default(0) int bookmarksCount,
+    @Default(0) int repostsCount,
     double? durationSeconds,
     int? width,
     int? height,

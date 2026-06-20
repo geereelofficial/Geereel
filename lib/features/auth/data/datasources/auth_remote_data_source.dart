@@ -31,6 +31,14 @@ abstract class AuthRemoteDataSource {
   Future<void> updateProfile({required String uid, String? displayName, String? bio});
 
   Future<String> uploadAvatar({required String uid, required File file});
+
+  Future<void> followUser(String targetUid);
+
+  Future<void> unfollowUser(String targetUid);
+
+  Future<bool> isFollowing(String targetUid);
+
+  Future<List<UserModel>> searchUsers(String query);
 }
 
 class ApiAuthRemoteDataSource implements AuthRemoteDataSource {
@@ -171,6 +179,28 @@ class ApiAuthRemoteDataSource implements AuthRemoteDataSource {
     await _apiClient.post('/users/$uid/avatar', data: {'photoUrl': url});
     await _firebaseAuth.currentUser?.updatePhotoURL(url);
     return url;
+  }
+
+  @override
+  Future<void> followUser(String targetUid) async {
+    await _apiClient.post('/users/$targetUid/follow');
+  }
+
+  @override
+  Future<void> unfollowUser(String targetUid) async {
+    await _apiClient.delete('/users/$targetUid/follow');
+  }
+
+  @override
+  Future<bool> isFollowing(String targetUid) async {
+    final response = await _apiClient.get('/users/$targetUid/is-following');
+    return (response.data as Map<String, dynamic>)['following'] as bool;
+  }
+
+  @override
+  Future<List<UserModel>> searchUsers(String query) async {
+    final response = await _apiClient.get('/users/search', query: {'q': query});
+    return (response.data as List).map((json) => UserModel.fromJson(json as Map<String, dynamic>)).toList();
   }
 
   Future<bool> _isUsernameAvailable(String username) async {

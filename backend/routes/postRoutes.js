@@ -9,12 +9,19 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get('/feed', asyncHandler(postController.getFeed));
+router.get('/following', asyncHandler(postController.getFollowingFeed));
 router.get('/user/:authorId', asyncHandler(postController.getUserPosts));
 router.post('/', asyncHandler(postController.createPost));
 
 router.get('/:postId/liked', asyncHandler(postController.getLiked));
 router.post('/:postId/like', asyncHandler(postController.like));
 router.delete('/:postId/like', asyncHandler(postController.unlike));
+router.get('/:postId/bookmarked', asyncHandler(postController.getBookmarked));
+router.post('/:postId/bookmark', asyncHandler(postController.bookmark));
+router.delete('/:postId/bookmark', asyncHandler(postController.unbookmark));
+router.get('/:postId/reposted', asyncHandler(postController.getReposted));
+router.post('/:postId/repost', asyncHandler(postController.repost));
+router.delete('/:postId/repost', asyncHandler(postController.unrepost));
 router.post('/:postId/share', asyncHandler(postController.share));
 router.post('/:postId/view', asyncHandler(postController.view));
 

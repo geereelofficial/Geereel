@@ -32,7 +32,10 @@ class PostsGrid extends StatelessWidget {
       itemCount: posts.length,
       itemBuilder: (context, index) {
         final post = posts[index];
-        final imageUrl = post.thumbnailUrl ?? (post.mediaType == MediaType.image ? post.mediaUrl : null);
+        final thumbnailUrl = post.thumbnailUrl;
+        final imageUrl = thumbnailUrl != null && thumbnailUrl.isNotEmpty
+            ? thumbnailUrl
+            : (post.mediaType == MediaType.image ? post.mediaUrl : null);
 
         return GestureDetector(
           onTap: onTap == null ? null : () => onTap!(post),
