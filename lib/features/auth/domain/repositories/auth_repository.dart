@@ -39,4 +39,16 @@ abstract class AuthRepository {
   /// Uploads a new avatar to Storage and updates the profile's photoUrl.
   /// Returns the new photo URL.
   Future<Result<String>> uploadAvatar({required String uid, required File file});
+
+  /// Follows [targetUid] as the signed-in caller. Idempotent.
+  Future<Result<void>> followUser(String targetUid);
+
+  /// Unfollows [targetUid] as the signed-in caller. Idempotent.
+  Future<Result<void>> unfollowUser(String targetUid);
+
+  /// Whether the signed-in caller already follows [targetUid].
+  Future<Result<bool>> isFollowing(String targetUid);
+
+  /// Searches users by username/display name, excluding the caller.
+  Future<Result<List<UserEntity>>> searchUsers(String query);
 }

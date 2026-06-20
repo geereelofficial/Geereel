@@ -30,6 +30,22 @@ class PostRepositoryImpl implements PostRepository {
   }
 
   @override
+  Future<Result<List<PostEntity>>> fetchFollowingFeedPage({
+    DateTime? startAfterCreatedAt,
+    int limit = AppConstants.feedPageSize,
+  }) async {
+    try {
+      final models = await _remote.fetchFollowingFeedPage(
+        startAfterCreatedAt: startAfterCreatedAt,
+        limit: limit,
+      );
+      return Ok(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
   Future<Result<List<PostEntity>>> fetchUserPosts({
     required String authorId,
     DateTime? startAfterCreatedAt,
@@ -56,6 +72,36 @@ class PostRepositoryImpl implements PostRepository {
   Future<Result<void>> toggleLike({required String postId, required String uid}) async {
     try {
       await _remote.toggleLike(postId: postId, uid: uid);
+      return const Ok(null);
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
+  Stream<bool> watchIsBookmarked({required String postId, required String uid}) {
+    return _remote.watchIsBookmarked(postId: postId, uid: uid);
+  }
+
+  @override
+  Future<Result<void>> toggleBookmark({required String postId, required String uid}) async {
+    try {
+      await _remote.toggleBookmark(postId: postId, uid: uid);
+      return const Ok(null);
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
+  Stream<bool> watchIsReposted({required String postId, required String uid}) {
+    return _remote.watchIsReposted(postId: postId, uid: uid);
+  }
+
+  @override
+  Future<Result<void>> toggleRepost({required String postId, required String uid}) async {
+    try {
+      await _remote.toggleRepost(postId: postId, uid: uid);
       return const Ok(null);
     } catch (e) {
       return Err(_mapToFailure(e));

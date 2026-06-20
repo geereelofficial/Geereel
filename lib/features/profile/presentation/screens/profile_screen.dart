@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../app/theme/app_colors.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
@@ -51,9 +52,17 @@ class ProfileScreen extends ConsumerWidget {
                           onPressed: () => context.push('/edit-profile'),
                           child: const Text('Edit Profile'),
                         )
-                      : OutlinedButton(
-                          onPressed: () => context.push('/chat/$uid'),
-                          child: const Text('Message'),
+                      : Row(
+                          children: [
+                            Expanded(child: _FollowButton(uid: uid)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => context.push('/chat/$uid'),
+                                child: const Text('Message'),
+                              ),
+                            ),
+                          ],
                         ),
                 ),
                 const SizedBox(height: 16),
@@ -72,6 +81,44 @@ class ProfileScreen extends ConsumerWidget {
         loading: () => const LoadingIndicator(),
         error: (error, _) => ErrorView(message: error.toString()),
       ),
+    );
+  }
+}
+
+class _FollowButton extends ConsumerWidget {
+  final String uid;
+
+  const _FollowButton({required this.uid});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isFollowingAsync = ref.watch(isFollowingProvider(uid));
+    final isLoading = ref.watch(followControllerProvider).isLoading;
+    final isFollowing = isFollowingAsync.value ?? false;
+
+    void toggle() {
+      final notifier = ref.read(followControllerProvider.notifier);
+      if (isFollowing) {
+        notifier.unfollow(uid);
+      } else {
+        notifier.follow(uid);
+      }
+    }
+
+    if (isFollowing) {
+      return OutlinedButton(
+        onPressed: isLoading ? null : toggle,
+        child: const Text('Following'),
+      );
+    }
+
+    return ElevatedButton(
+      onPressed: isLoading ? null : toggle,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+      ),
+      child: const Text('Follow'),
     );
   }
 }

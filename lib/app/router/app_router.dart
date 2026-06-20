@@ -12,6 +12,7 @@ import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/my_profile_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/screens/settings_screen.dart';
+import '../../features/search/presentation/screens/search_screen.dart';
 import '../../features/upload/presentation/screens/upload_screen.dart';
 import 'home_shell.dart';
 
@@ -66,6 +67,7 @@ GoRouter goRouter(Ref ref) {
           return ChatScreen(otherUserId: state.pathParameters['otherUserId']!);
         },
       ),
+      GoRoute(path: '/search', builder: (context, state) => const SearchScreen()),
       GoRoute(path: '/edit-profile', builder: (context, state) => const EditProfileScreen()),
       GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
       GoRoute(

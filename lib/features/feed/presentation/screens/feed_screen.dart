@@ -6,22 +6,44 @@ import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../domain/entities/post_entity.dart';
 import '../providers/feed_providers.dart';
+import '../widgets/feed_top_bar.dart';
 import '../widgets/video_feed_item.dart';
 
 /// Vertical, full-screen, swipeable video/image feed — the app's home tab.
 ///
-/// Keeps one [VideoPlayerController] per video post in a window of
-/// [_currentIndex] - 1 .. +1, so the next video is already buffering by
-/// the time the user swipes to it, without holding controllers for the
-/// entire fetched page in memory.
-class FeedScreen extends ConsumerStatefulWidget {
+/// Hosts the TikTok-style [FeedTopBar] (Following / For You / search) as an
+/// overlay above the page view; the page view itself is keyed by the
+/// selected [FeedTab] so switching tabs tears down and rebuilds pagination
+/// and video controllers from scratch rather than mixing two feeds' state.
+class FeedScreen extends ConsumerWidget {
   const FeedScreen({super.key});
 
   @override
-  ConsumerState<FeedScreen> createState() => _FeedScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedTab = ref.watch(selectedFeedTabProvider);
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          _FeedPageView(key: ValueKey(selectedTab), tab: selectedTab),
+          const SafeArea(child: FeedTopBar()),
+        ],
+      ),
+    );
+  }
 }
 
-class _FeedScreenState extends ConsumerState<FeedScreen> {
+class _FeedPageView extends ConsumerStatefulWidget {
+  final FeedTab tab;
+
+  const _FeedPageView({super.key, required this.tab});
+
+  @override
+  ConsumerState<_FeedPageView> createState() => _FeedPageViewState();
+}
+
+class _FeedPageViewState extends ConsumerState<_FeedPageView> {
   final PageController _pageController = PageController();
   final Map<int, VideoPlayerController> _controllers = {};
   int _currentIndex = 0;
@@ -76,51 +98,53 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     ref.read(postRepositoryProvider).incrementViewCount(posts[index].postId);
 
     if (index >= posts.length - 2) {
-      ref.read(feedControllerProvider.notifier).loadMore();
+      ref.read(feedControllerProvider(widget.tab).notifier).loadMore();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final feedAsync = ref.watch(feedControllerProvider);
+    final feedAsync = ref.watch(feedControllerProvider(widget.tab));
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: feedAsync.when(
-        data: (posts) {
-          if (posts.isEmpty) {
-            return const Center(
-              child: Text('No posts yet — be the first to share one!'),
-            );
-          }
-
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_controllers.isEmpty) _syncControllers(posts);
-          });
-
-          return RefreshIndicator(
-            onRefresh: () => ref.read(feedControllerProvider.notifier).refresh(),
-            child: PageView.builder(
-              controller: _pageController,
-              scrollDirection: Axis.vertical,
-              itemCount: posts.length,
-              onPageChanged: (index) => _onPageChanged(index, posts),
-              itemBuilder: (context, index) {
-                final post = posts[index];
-                return VideoFeedItem(
-                  post: post,
-                  controller: post.mediaType == MediaType.video ? _controllers[index] : null,
-                  isActive: index == _currentIndex,
-                );
-              },
+    return feedAsync.when(
+      data: (posts) {
+        if (posts.isEmpty) {
+          return Center(
+            child: Text(
+              widget.tab == FeedTab.following
+                  ? 'Posts from accounts you follow will show up here.'
+                  : 'No posts yet — be the first to share one!',
+              textAlign: TextAlign.center,
             ),
           );
-        },
-        loading: () => const LoadingIndicator(),
-        error: (error, _) => ErrorView(
-          message: 'Could not load the feed.\n$error',
-          onRetry: () => ref.invalidate(feedControllerProvider),
-        ),
+        }
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_controllers.isEmpty) _syncControllers(posts);
+        });
+
+        return RefreshIndicator(
+          onRefresh: () => ref.read(feedControllerProvider(widget.tab).notifier).refresh(),
+          child: PageView.builder(
+            controller: _pageController,
+            scrollDirection: Axis.vertical,
+            itemCount: posts.length,
+            onPageChanged: (index) => _onPageChanged(index, posts),
+            itemBuilder: (context, index) {
+              final post = posts[index];
+              return VideoFeedItem(
+                post: post,
+                controller: post.mediaType == MediaType.video ? _controllers[index] : null,
+                isActive: index == _currentIndex,
+              );
+            },
+          ),
+        );
+      },
+      loading: () => const LoadingIndicator(),
+      error: (error, _) => ErrorView(
+        message: 'Could not load the feed.\n$error',
+        onRetry: () => ref.invalidate(feedControllerProvider(widget.tab)),
       ),
     );
   }

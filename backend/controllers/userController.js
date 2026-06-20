@@ -81,6 +81,24 @@ async function usernameAvailable(req, res) {
   res.json({ available: !existing });
 }
 
+// GET /api/users/search?q= — matches username or displayName, case-insensitive.
+async function searchUsers(req, res) {
+  const q = (req.query.q || '').trim();
+  if (!q) {
+    return res.json([]);
+  }
+
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(escaped, 'i');
+
+  const users = await User.find({
+    _id: { $ne: req.uid },
+    $or: [{ username: regex }, { displayName: regex }],
+  }).limit(20);
+
+  res.json(users.map(toJson));
+}
+
 // POST /api/users/:uid/avatar — self only. {photoUrl} already uploaded to Cloudinary.
 async function setAvatar(req, res) {
   if (req.params.uid !== req.uid) {
@@ -135,6 +153,7 @@ module.exports = {
   getProfile,
   updateProfile,
   usernameAvailable,
+  searchUsers,
   setAvatar,
   addFcmToken,
   removeFcmToken,

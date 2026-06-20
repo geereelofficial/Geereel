@@ -6,10 +6,14 @@ import '../../data/datasources/auth_remote_data_source.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../domain/usecases/check_is_following.dart';
+import '../../domain/usecases/follow_user.dart';
+import '../../domain/usecases/search_users.dart';
 import '../../domain/usecases/sign_in_with_email.dart';
 import '../../domain/usecases/sign_in_with_google.dart';
 import '../../domain/usecases/sign_out.dart';
 import '../../domain/usecases/sign_up_with_email.dart';
+import '../../domain/usecases/unfollow_user.dart';
 import '../../domain/usecases/update_profile.dart';
 import '../../domain/usecases/upload_avatar.dart';
 
@@ -46,6 +50,18 @@ UpdateProfile updateProfileUseCase(Ref ref) => UpdateProfile(ref.watch(authRepos
 @riverpod
 UploadAvatar uploadAvatarUseCase(Ref ref) => UploadAvatar(ref.watch(authRepositoryProvider));
 
+@riverpod
+FollowUser followUserUseCase(Ref ref) => FollowUser(ref.watch(authRepositoryProvider));
+
+@riverpod
+UnfollowUser unfollowUserUseCase(Ref ref) => UnfollowUser(ref.watch(authRepositoryProvider));
+
+@riverpod
+CheckIsFollowing checkIsFollowingUseCase(Ref ref) => CheckIsFollowing(ref.watch(authRepositoryProvider));
+
+@riverpod
+SearchUsers searchUsersUseCase(Ref ref) => SearchUsers(ref.watch(authRepositoryProvider));
+
 /// Emits the signed-in user's uid, or null when signed out. Drives the
 /// router's auth redirect.
 @riverpod
@@ -66,6 +82,53 @@ Stream<UserEntity?> currentUserProfile(Ref ref) {
 @riverpod
 Stream<UserEntity?> userProfile(Ref ref, String uid) {
   return ref.watch(authRepositoryProvider).watchUserProfile(uid);
+}
+
+/// Whether the signed-in caller follows [targetUid]. Invalidated by
+/// [FollowController] after a successful follow/unfollow.
+@riverpod
+Future<bool> isFollowing(Ref ref, String targetUid) async {
+  final result = await ref.watch(checkIsFollowingUseCaseProvider).call(targetUid);
+  return switch (result) {
+    Ok(value: final following) => following,
+    Err() => false,
+  };
+}
+
+/// Drives the follow/unfollow button on a profile. Invalidates
+/// [isFollowingProvider] and the viewed/own profiles afterwards so
+/// follower/following counts stay in sync.
+@riverpod
+class FollowController extends _$FollowController {
+  @override
+  FutureOr<void> build() {}
+
+  Future<bool> follow(String targetUid) async {
+    state = const AsyncLoading();
+    final result = await ref.read(followUserUseCaseProvider).call(targetUid);
+    return _handle(result, targetUid);
+  }
+
+  Future<bool> unfollow(String targetUid) async {
+    state = const AsyncLoading();
+    final result = await ref.read(unfollowUserUseCaseProvider).call(targetUid);
+    return _handle(result, targetUid);
+  }
+
+  bool _handle(Result result, String targetUid) {
+    switch (result) {
+      case Ok():
+        state = const AsyncData(null);
+        ref.invalidate(isFollowingProvider(targetUid));
+        ref.invalidate(userProfileProvider(targetUid));
+        final myUid = ref.read(authStateProvider).value;
+        if (myUid != null) ref.invalidate(userProfileProvider(myUid));
+        return true;
+      case Err(failure: final failure):
+        state = AsyncError(failure, StackTrace.current);
+        return false;
+    }
+  }
 }
 
 /// Drives the login/signup screens: exposes loading/error state for the

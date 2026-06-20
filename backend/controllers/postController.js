@@ -1,6 +1,9 @@
 const Post = require('../models/Post');
 const Like = require('../models/Like');
+const Bookmark = require('../models/Bookmark');
+const Repost = require('../models/Repost');
 const User = require('../models/User');
+const Follow = require('../models/Follow');
 const { ApiError } = require('../utils/ApiError');
 
 function toJson(post) {
@@ -17,6 +20,8 @@ function toJson(post) {
     commentsCount: post.commentsCount,
     sharesCount: post.sharesCount,
     viewsCount: post.viewsCount,
+    bookmarksCount: post.bookmarksCount,
+    repostsCount: post.repostsCount,
     durationSeconds: post.durationSeconds,
     width: post.width,
     height: post.height,
@@ -38,6 +43,26 @@ function buildCursorQuery(baseQuery, cursor) {
 async function getFeed(req, res) {
   const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
   const query = buildCursorQuery({ status: 'published' }, req.query.cursor);
+
+  const posts = await Post.find(query).sort({ createdAt: -1 }).limit(limit);
+  res.json(posts.map(toJson));
+}
+
+// GET /api/posts/following?cursor=&limit= — posts authored by accounts the
+// caller follows, reverse-chronological. Empty list if following no one.
+async function getFollowingFeed(req, res) {
+  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+  const follows = await Follow.find({ followerId: req.uid }).select('followingId');
+  const followingIds = follows.map((f) => f.followingId);
+
+  if (followingIds.length === 0) {
+    return res.json([]);
+  }
+
+  const query = buildCursorQuery(
+    { authorId: { $in: followingIds }, status: 'published' },
+    req.query.cursor,
+  );
 
   const posts = await Post.find(query).sort({ createdAt: -1 }).limit(limit);
   res.json(posts.map(toJson));
@@ -127,6 +152,82 @@ async function unlike(req, res) {
   res.status(204).end();
 }
 
+// GET /api/posts/:postId/bookmarked
+async function getBookmarked(req, res) {
+  const bookmark = await Bookmark.findOne({ postId: req.params.postId, uid: req.uid });
+  res.json({ bookmarked: !!bookmark });
+}
+
+// POST /api/posts/:postId/bookmark
+async function bookmark(req, res) {
+  const postId = req.params.postId;
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    throw new ApiError(404, 'Post not found.');
+  }
+
+  try {
+    await Bookmark.create({ postId, uid: req.uid });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(204).end(); // already bookmarked — idempotent
+    }
+    throw err;
+  }
+
+  await Post.updateOne({ _id: postId }, { $inc: { bookmarksCount: 1 } });
+  res.status(204).end();
+}
+
+// DELETE /api/posts/:postId/bookmark
+async function unbookmark(req, res) {
+  const postId = req.params.postId;
+  const deleted = await Bookmark.findOneAndDelete({ postId, uid: req.uid });
+  if (deleted) {
+    await Post.updateOne({ _id: postId }, { $inc: { bookmarksCount: -1 } });
+  }
+  res.status(204).end();
+}
+
+// GET /api/posts/:postId/reposted
+async function getReposted(req, res) {
+  const repost = await Repost.findOne({ postId: req.params.postId, uid: req.uid });
+  res.json({ reposted: !!repost });
+}
+
+// POST /api/posts/:postId/repost
+async function repost(req, res) {
+  const postId = req.params.postId;
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    throw new ApiError(404, 'Post not found.');
+  }
+
+  try {
+    await Repost.create({ postId, uid: req.uid });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(204).end(); // already reposted — idempotent
+    }
+    throw err;
+  }
+
+  await Post.updateOne({ _id: postId }, { $inc: { repostsCount: 1 } });
+  res.status(204).end();
+}
+
+// DELETE /api/posts/:postId/repost
+async function unrepost(req, res) {
+  const postId = req.params.postId;
+  const deleted = await Repost.findOneAndDelete({ postId, uid: req.uid });
+  if (deleted) {
+    await Post.updateOne({ _id: postId }, { $inc: { repostsCount: -1 } });
+  }
+  res.status(204).end();
+}
+
 // POST /api/posts/:postId/share
 async function share(req, res) {
   const post = await Post.findByIdAndUpdate(
@@ -156,11 +257,18 @@ async function view(req, res) {
 module.exports = {
   toJson,
   getFeed,
+  getFollowingFeed,
   getUserPosts,
   createPost,
   getLiked,
   like,
   unlike,
+  getBookmarked,
+  bookmark,
+  unbookmark,
+  getReposted,
+  repost,
+  unrepost,
   share,
   view,
 };
