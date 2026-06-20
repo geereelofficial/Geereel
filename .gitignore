@@ -1,0 +1,68 @@
+# Claude Code session data
+.claude/
+
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Generated code (run `dart run build_runner build` after cloning/pulling)
+*.g.dart
+*.freezed.dart
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Android local machine config (SDK/Flutter paths)
+android/local.properties
+
+# Backend secrets (backend/ has its own .gitignore, but belt-and-suspenders)
+backend/.env
+backend/config/firebase-service-account.json
+
+# Debug artifacts generated during development
+wd*.xml
+window_dump*.xml
+geereel_check*.png
+g1.png
+g2.png
+flutter_run*.log
+logcat_live*.log

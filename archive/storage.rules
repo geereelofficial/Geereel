@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// Paste this into Firebase Console -> Storage -> Rules.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    match /posts/{authorId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn()
+        && request.auth.uid == authorId
+        && request.resource.size < 200 * 1024 * 1024
+        && (request.resource.contentType.matches('video/.*') || request.resource.contentType.matches('image/.*'));
+    }
+
+    // File names are "{uid}.{extension}" (see AuthRemoteDataSource.uploadAvatar),
+    // so the uid is everything before the first '.'.
+    match /avatars/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn()
+        && fileName.split('.')[0] == request.auth.uid
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

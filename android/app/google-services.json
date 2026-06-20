@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "121909559512",
+    "project_id": "geereel",
+    "storage_bucket": "geereel.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:121909559512:android:b5421548a622a5bab717ad",
+        "android_client_info": {
+          "package_name": "com.geereel.geereel"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBncQA2mwq1SgJEjH3Cg3Da2hYQrheTnOA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
