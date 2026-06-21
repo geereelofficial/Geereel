@@ -29,5 +29,9 @@ abstract class PostEntity with _$PostEntity {
     int? height,
     @Default(PostStatus.published) PostStatus status,
     required DateTime createdAt,
+    @Default(false) bool liked,
+    @Default(false) bool bookmarked,
+    @Default(false) bool reposted,
+    @Default(false) bool isFollowingAuthor,
   }) = _PostEntity;
 }

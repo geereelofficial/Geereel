@@ -13,6 +13,8 @@ import '../../features/profile/presentation/screens/my_profile_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/screens/settings_screen.dart';
 import '../../features/search/presentation/screens/search_screen.dart';
+import '../../features/status/presentation/screens/create_status_screen.dart';
+import '../../features/status/presentation/screens/status_viewer_screen.dart';
 import '../../features/upload/presentation/screens/upload_screen.dart';
 import 'home_shell.dart';
 
@@ -68,6 +70,13 @@ GoRouter goRouter(Ref ref) {
         },
       ),
       GoRoute(path: '/search', builder: (context, state) => const SearchScreen()),
+      GoRoute(path: '/status/create', builder: (context, state) => const CreateStatusScreen()),
+      GoRoute(
+        path: '/status/:authorId',
+        builder: (context, state) {
+          return StatusViewerScreen(authorId: state.pathParameters['authorId']!);
+        },
+      ),
       GoRoute(path: '/edit-profile', builder: (context, state) => const EditProfileScreen()),
       GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
       GoRoute(

@@ -9,6 +9,7 @@ import '../constants/api_constants.dart';
 class SocketService {
   io.Socket? _socket;
   final _messageControllers = <void Function(Map<String, dynamic>)>[];
+  final _presenceControllers = <void Function(Map<String, dynamic>)>[];
   final _errorControllers = <void Function(Map<String, dynamic>)>[];
 
   Future<void> connect() async {
@@ -31,6 +32,13 @@ class SocketService {
     _socket!.on('new_message', (data) {
       if (data is Map<String, dynamic>) {
         for (final listener in _messageControllers) {
+          listener(data);
+        }
+      }
+    });
+    _socket!.on('presence_update', (data) {
+      if (data is Map<String, dynamic>) {
+        for (final listener in _presenceControllers) {
           listener(data);
         }
       }
@@ -64,6 +72,14 @@ class SocketService {
 
   void removeMessageListener(void Function(Map<String, dynamic>) listener) {
     _messageControllers.remove(listener);
+  }
+
+  void addPresenceListener(void Function(Map<String, dynamic>) listener) {
+    _presenceControllers.add(listener);
+  }
+
+  void removePresenceListener(void Function(Map<String, dynamic>) listener) {
+    _presenceControllers.remove(listener);
   }
 
   void addErrorListener(void Function(Map<String, dynamic>) listener) {

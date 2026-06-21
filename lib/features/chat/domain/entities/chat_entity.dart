@@ -17,5 +17,7 @@ abstract class ChatEntity with _$ChatEntity {
     DateTime? lastMessageAt,
     @Default(0) int unreadCount,
     required DateTime createdAt,
+    @Default(false) bool otherIsOnline,
+    DateTime? otherLastActiveAt,
   }) = _ChatEntity;
 }

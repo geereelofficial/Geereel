@@ -17,6 +17,7 @@ abstract class ChatModel with _$ChatModel {
     Map<String, dynamic>? lastMessage,
     @Default(<String, dynamic>{}) Map<String, dynamic> unreadCount,
     @TimestampConverter() required DateTime createdAt,
+    @Default(<String, dynamic>{}) Map<String, dynamic> presence,
   }) = _ChatModel;
 
   factory ChatModel.fromJson(Map<String, dynamic> json) => _$ChatModelFromJson(json);
@@ -31,6 +32,7 @@ extension ChatModelMapper on ChatModel {
     final otherInfo = participantInfo[otherUid] as Map<String, dynamic>?;
     final lastMsg = lastMessage;
     final rawUnread = unreadCount[viewerUid];
+    final otherPresence = presence[otherUid] as Map<String, dynamic>?;
 
     return ChatEntity(
       chatId: chatId,
@@ -44,6 +46,8 @@ extension ChatModelMapper on ChatModel {
           : const TimestampConverter().fromJson(lastMsg!['createdAt']),
       unreadCount: rawUnread is int ? rawUnread : 0,
       createdAt: createdAt,
+      otherIsOnline: otherPresence?['online'] as bool? ?? false,
+      otherLastActiveAt: const NullableTimestampConverter().fromJson(otherPresence?['lastActiveAt']),
     );
   }
 }

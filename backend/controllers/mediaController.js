@@ -1,7 +1,7 @@
 const cloudinary = require('../config/cloudinary');
 const { ApiError } = require('../utils/ApiError');
 
-const ALLOWED_FOLDERS = new Set(['posts', 'avatars']);
+const ALLOWED_FOLDERS = new Set(['posts', 'avatars', 'statuses']);
 
 // POST /api/media/signature — {folder: 'posts'|'avatars'}
 // Signs an upload request server-side; the secret never leaves the backend.

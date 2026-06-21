@@ -1,6 +1,7 @@
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');
 const User = require('../models/User');
+const presence = require('../utils/presence');
 const { ApiError } = require('../utils/ApiError');
 
 function chatIdFor(uidA, uidB) {
@@ -34,10 +35,37 @@ function messageToJson(message) {
   };
 }
 
+// Attaches each chat's per-participant online/lastActiveAt state in one
+// batched User query, regardless of how many chats are in the list — same
+// shape as posts' attachViewerState, so the client never needs a separate
+// per-chat "is this person online" round trip.
+async function attachPresence(chats) {
+  if (chats.length === 0) return [];
+
+  const participantIds = new Set();
+  for (const chat of chats) {
+    for (const id of chat.participantIds) participantIds.add(id);
+  }
+
+  const users = await User.find({ _id: { $in: [...participantIds] } }).select('lastActiveAt');
+  const lastActiveById = new Map(users.map((u) => [u._id, u.lastActiveAt]));
+
+  return chats.map((chat) => {
+    const chatPresence = {};
+    for (const id of chat.participantIds) {
+      chatPresence[id] = {
+        online: presence.isOnline(id),
+        lastActiveAt: lastActiveById.get(id) || null,
+      };
+    }
+    return { ...toJson(chat), presence: chatPresence };
+  });
+}
+
 // GET /api/chats — all chats the caller participates in.
 async function listChats(req, res) {
   const chats = await Chat.find({ participantIds: req.uid }).sort({ lastMessageAt: -1 });
-  res.json(chats.map(toJson));
+  res.json(await attachPresence(chats));
 }
 
 // POST /api/chats — {otherUid} -> {chatId}. Other side's info looked up server-side.

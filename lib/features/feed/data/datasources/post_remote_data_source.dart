@@ -15,15 +15,9 @@ abstract class PostRemoteDataSource {
     required int limit,
   });
 
-  Stream<bool> watchIsLiked({required String postId, required String uid});
-
   Future<void> toggleLike({required String postId, required String uid});
 
-  Stream<bool> watchIsBookmarked({required String postId, required String uid});
-
   Future<void> toggleBookmark({required String postId, required String uid});
-
-  Stream<bool> watchIsReposted({required String postId, required String uid});
 
   Future<void> toggleRepost({required String postId, required String uid});
 
@@ -99,11 +93,6 @@ class ApiPostRemoteDataSource implements PostRemoteDataSource {
     return (response.data as List).map((json) => PostModel.fromJson(json as Map<String, dynamic>)).toList();
   }
 
-  @override
-  Stream<bool> watchIsLiked({required String postId, required String uid}) {
-    return Stream.fromFuture(_fetchIsLiked(postId));
-  }
-
   Future<bool> _fetchIsLiked(String postId) async {
     final response = await _apiClient.get('/posts/$postId/liked');
     return (response.data as Map<String, dynamic>)['liked'] as bool;
@@ -119,11 +108,6 @@ class ApiPostRemoteDataSource implements PostRemoteDataSource {
     }
   }
 
-  @override
-  Stream<bool> watchIsBookmarked({required String postId, required String uid}) {
-    return Stream.fromFuture(_fetchIsBookmarked(postId));
-  }
-
   Future<bool> _fetchIsBookmarked(String postId) async {
     final response = await _apiClient.get('/posts/$postId/bookmarked');
     return (response.data as Map<String, dynamic>)['bookmarked'] as bool;
@@ -137,11 +121,6 @@ class ApiPostRemoteDataSource implements PostRemoteDataSource {
     } else {
       await _apiClient.post('/posts/$postId/bookmark');
     }
-  }
-
-  @override
-  Stream<bool> watchIsReposted({required String postId, required String uid}) {
-    return Stream.fromFuture(_fetchIsReposted(postId));
   }
 
   Future<bool> _fetchIsReposted(String postId) async {

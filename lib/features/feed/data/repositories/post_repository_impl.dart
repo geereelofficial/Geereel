@@ -64,11 +64,6 @@ class PostRepositoryImpl implements PostRepository {
   }
 
   @override
-  Stream<bool> watchIsLiked({required String postId, required String uid}) {
-    return _remote.watchIsLiked(postId: postId, uid: uid);
-  }
-
-  @override
   Future<Result<void>> toggleLike({required String postId, required String uid}) async {
     try {
       await _remote.toggleLike(postId: postId, uid: uid);
@@ -79,11 +74,6 @@ class PostRepositoryImpl implements PostRepository {
   }
 
   @override
-  Stream<bool> watchIsBookmarked({required String postId, required String uid}) {
-    return _remote.watchIsBookmarked(postId: postId, uid: uid);
-  }
-
-  @override
   Future<Result<void>> toggleBookmark({required String postId, required String uid}) async {
     try {
       await _remote.toggleBookmark(postId: postId, uid: uid);
@@ -91,11 +81,6 @@ class PostRepositoryImpl implements PostRepository {
     } catch (e) {
       return Err(_mapToFailure(e));
     }
-  }
-
-  @override
-  Stream<bool> watchIsReposted({required String postId, required String uid}) {
-    return _remote.watchIsReposted(postId: postId, uid: uid);
   }
 
   @override

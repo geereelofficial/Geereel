@@ -20,6 +20,7 @@ const userSchema = new mongoose.Schema({
   followingCount: { type: Number, default: 0 },
   postsCount: { type: Number, default: 0 },
   fcmTokens: { type: [fcmTokenSchema], default: [] },
+  lastActiveAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now },
 });
 

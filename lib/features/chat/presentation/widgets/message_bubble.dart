@@ -12,15 +12,28 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const cornerRadius = Radius.circular(18);
+    const tailRadius = Radius.circular(4);
+
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+        margin: EdgeInsets.only(
+          top: 2,
+          bottom: 2,
+          left: isMine ? 48 : 12,
+          right: isMine ? 12 : 48,
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
           color: isMine ? AppColors.primary : AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.only(
+            topLeft: cornerRadius,
+            topRight: cornerRadius,
+            bottomLeft: isMine ? cornerRadius : tailRadius,
+            bottomRight: isMine ? tailRadius : cornerRadius,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

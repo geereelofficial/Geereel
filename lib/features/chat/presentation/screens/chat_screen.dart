@@ -1,12 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_text_styles.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_avatar.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../domain/entities/chat_entity.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/message_bubble.dart';
+
+/// Finds this conversation's entry in the already-loaded chat list so the
+/// "Active now" header can show live presence without a dedicated
+/// per-screen network call.
+ChatEntity? _findChat(List<ChatEntity> chats, String otherUserId) {
+  for (final chat in chats) {
+    if (chat.otherUserId == otherUserId) return chat;
+  }
+  return null;
+}
+
+String? _presenceLabel(ChatEntity? chat) {
+  if (chat == null) return null;
+  if (chat.otherIsOnline) return 'Active now';
+  final lastActive = chat.otherLastActiveAt;
+  return lastActive == null ? null : 'Active ${Formatters.relativeTime(lastActive)}';
+}
 
 /// 1:1 chat with [otherUserId]. Resolves/creates the underlying chat
 /// document via [resolvedChatIdProvider] before showing the message list.
@@ -39,6 +59,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final otherProfileAsync = ref.watch(userProfileProvider(widget.otherUserId));
     final chatIdAsync = ref.watch(resolvedChatIdProvider(widget.otherUserId));
+    final chats = ref.watch(myChatsProvider).value ?? const <ChatEntity>[];
+    final matchingChat = _findChat(chats, widget.otherUserId);
+    final presenceLabel = _presenceLabel(matchingChat);
 
     ref.listen(resolvedChatIdProvider(widget.otherUserId), (previous, next) {
       final chatId = next.value;
@@ -54,7 +77,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             AppAvatar(photoUrl: otherProfileAsync.value?.photoUrl, radius: 16),
             const SizedBox(width: 10),
-            Text('@${otherProfileAsync.value?.username ?? '...'}'),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('@${otherProfileAsync.value?.username ?? '...'}', style: AppTextStyles.username),
+                if (presenceLabel != null)
+                  Text(
+                    presenceLabel,
+                    style: AppTextStyles.caption.copyWith(
+                      color: matchingChat!.otherIsOnline ? AppColors.success : AppColors.textSecondary,
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ),

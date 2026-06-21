@@ -20,6 +20,19 @@ part 'feed_providers.g.dart';
 /// Which top-bar tab the feed screen is showing.
 enum FeedTab { forYou, following }
 
+/// Whether the Feed bottom-nav branch is the one currently visible. Set by
+/// [HomeShell] on every branch switch so the feed can pause its video
+/// instead of playing audio behind the chat/profile tabs.
+@riverpod
+class FeedTabActive extends _$FeedTabActive {
+  @override
+  bool build() => true;
+
+  void set(bool value) {
+    if (state != value) state = value;
+  }
+}
+
 /// Currently selected top-bar tab; defaults to "For You" like TikTok.
 @riverpod
 class SelectedFeedTab extends _$SelectedFeedTab {
@@ -128,32 +141,28 @@ class FeedController extends _$FeedController {
 /// Like state + count for one post, keyed by postId so each visible feed
 /// item tracks its own toggle independently of which feed tab is on screen.
 ///
-/// [initialCount] seeds the displayed count from the post entity already in
-/// memory (avoiding a redundant fetch); toggling flips the active state and
-/// adjusts the count optimistically, then reverts both if the request fails
-/// — this is what makes tapping the heart twice reliably round-trip between
-/// liked and unliked instead of getting stuck out of sync with the server.
+/// [initialCount] and [initialIsLiked] seed the state from the post entity
+/// already in memory — the feed/profile endpoints return each viewer's
+/// liked/bookmarked/reposted/following flags inline, so no per-post fetch is
+/// needed here. Toggling flips the active state and adjusts the count
+/// optimistically, then reverts both if the request fails — this is what
+/// makes tapping the heart twice reliably round-trip between liked and
+/// unliked instead of getting stuck out of sync with the server.
 @riverpod
 class LikeController extends _$LikeController {
   @override
-  Future<ToggleState> build(String postId, int initialCount) async {
-    final uid = ref.watch(authStateProvider).value;
-    final isLiked = uid == null
-        ? false
-        : await ref.watch(postRepositoryProvider).watchIsLiked(postId: postId, uid: uid).first;
-    return (isLiked, initialCount);
-  }
+  ToggleState build(String postId, int initialCount, bool initialIsLiked) =>
+      (initialIsLiked, initialCount);
 
   Future<void> toggle() async {
     final uid = ref.read(authStateProvider).value;
-    final current = state.value;
-    if (uid == null || current == null) return;
+    if (uid == null) return;
 
-    final (isActive, count) = current;
-    state = AsyncData((!isActive, isActive ? count - 1 : count + 1));
+    final (isActive, count) = state;
+    state = (!isActive, isActive ? count - 1 : count + 1);
 
     final result = await ref.read(toggleLikeUseCaseProvider).call(postId: postId, uid: uid);
-    if (result case Err()) state = AsyncData(current);
+    if (result case Err()) state = (isActive, count);
   }
 }
 
@@ -161,24 +170,18 @@ class LikeController extends _$LikeController {
 @riverpod
 class BookmarkController extends _$BookmarkController {
   @override
-  Future<ToggleState> build(String postId, int initialCount) async {
-    final uid = ref.watch(authStateProvider).value;
-    final isBookmarked = uid == null
-        ? false
-        : await ref.watch(postRepositoryProvider).watchIsBookmarked(postId: postId, uid: uid).first;
-    return (isBookmarked, initialCount);
-  }
+  ToggleState build(String postId, int initialCount, bool initialIsBookmarked) =>
+      (initialIsBookmarked, initialCount);
 
   Future<void> toggle() async {
     final uid = ref.read(authStateProvider).value;
-    final current = state.value;
-    if (uid == null || current == null) return;
+    if (uid == null) return;
 
-    final (isActive, count) = current;
-    state = AsyncData((!isActive, isActive ? count - 1 : count + 1));
+    final (isActive, count) = state;
+    state = (!isActive, isActive ? count - 1 : count + 1);
 
     final result = await ref.read(toggleBookmarkUseCaseProvider).call(postId: postId, uid: uid);
-    if (result case Err()) state = AsyncData(current);
+    if (result case Err()) state = (isActive, count);
   }
 }
 
@@ -186,23 +189,35 @@ class BookmarkController extends _$BookmarkController {
 @riverpod
 class RepostController extends _$RepostController {
   @override
-  Future<ToggleState> build(String postId, int initialCount) async {
-    final uid = ref.watch(authStateProvider).value;
-    final isReposted = uid == null
-        ? false
-        : await ref.watch(postRepositoryProvider).watchIsReposted(postId: postId, uid: uid).first;
-    return (isReposted, initialCount);
-  }
+  ToggleState build(String postId, int initialCount, bool initialIsReposted) =>
+      (initialIsReposted, initialCount);
 
   Future<void> toggle() async {
     final uid = ref.read(authStateProvider).value;
-    final current = state.value;
-    if (uid == null || current == null) return;
+    if (uid == null) return;
 
-    final (isActive, count) = current;
-    state = AsyncData((!isActive, isActive ? count - 1 : count + 1));
+    final (isActive, count) = state;
+    state = (!isActive, isActive ? count - 1 : count + 1);
 
     final result = await ref.read(toggleRepostUseCaseProvider).call(postId: postId, uid: uid);
-    if (result case Err()) state = AsyncData(current);
+    if (result case Err()) state = (isActive, count);
+  }
+}
+
+/// Whether the signed-in caller follows a post's author, keyed by authorId
+/// so multiple posts by the same author in the feed share one instance.
+/// Seeded from the post payload's [PostEntity.isFollowingAuthor] (no extra
+/// fetch) and flipped optimistically on tap; delegates the actual network
+/// call to [FollowController] so follower counts/profile streams elsewhere
+/// stay in sync.
+@riverpod
+class FeedFollowController extends _$FeedFollowController {
+  @override
+  bool build(String authorId, bool initialIsFollowing) => initialIsFollowing;
+
+  Future<void> follow() async {
+    state = true;
+    final ok = await ref.read(followControllerProvider.notifier).follow(authorId);
+    if (!ok) state = false;
   }
 }

@@ -39,13 +39,43 @@ function buildCursorQuery(baseQuery, cursor) {
   return { ...baseQuery, createdAt: { $lt: date } };
 }
 
+// Batches the viewer's liked/bookmarked/reposted/following state for a page
+// of posts into one query per collection, instead of the client making four
+// separate round trips per post (which is what made the feed feel slow).
+async function attachViewerState(posts, uid) {
+  if (posts.length === 0) return [];
+
+  const postIds = posts.map((p) => p._id);
+  const authorIds = [...new Set(posts.map((p) => p.authorId))];
+
+  const [likes, bookmarks, reposts, follows] = await Promise.all([
+    Like.find({ postId: { $in: postIds }, uid }).select('postId'),
+    Bookmark.find({ postId: { $in: postIds }, uid }).select('postId'),
+    Repost.find({ postId: { $in: postIds }, uid }).select('postId'),
+    Follow.find({ followerId: uid, followingId: { $in: authorIds } }).select('followingId'),
+  ]);
+
+  const likedIds = new Set(likes.map((l) => l.postId.toString()));
+  const bookmarkedIds = new Set(bookmarks.map((b) => b.postId.toString()));
+  const repostedIds = new Set(reposts.map((r) => r.postId.toString()));
+  const followedAuthorIds = new Set(follows.map((f) => f.followingId));
+
+  return posts.map((post) => ({
+    ...toJson(post),
+    liked: likedIds.has(post._id.toString()),
+    bookmarked: bookmarkedIds.has(post._id.toString()),
+    reposted: repostedIds.has(post._id.toString()),
+    isFollowingAuthor: followedAuthorIds.has(post.authorId),
+  }));
+}
+
 // GET /api/posts/feed?cursor=&limit=
 async function getFeed(req, res) {
   const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
   const query = buildCursorQuery({ status: 'published' }, req.query.cursor);
 
   const posts = await Post.find(query).sort({ createdAt: -1 }).limit(limit);
-  res.json(posts.map(toJson));
+  res.json(await attachViewerState(posts, req.uid));
 }
 
 // GET /api/posts/following?cursor=&limit= — posts authored by accounts the
@@ -65,7 +95,7 @@ async function getFollowingFeed(req, res) {
   );
 
   const posts = await Post.find(query).sort({ createdAt: -1 }).limit(limit);
-  res.json(posts.map(toJson));
+  res.json(await attachViewerState(posts, req.uid));
 }
 
 // GET /api/posts/user/:authorId?cursor=&limit=
@@ -77,7 +107,7 @@ async function getUserPosts(req, res) {
   );
 
   const posts = await Post.find(query).sort({ createdAt: -1 }).limit(limit);
-  res.json(posts.map(toJson));
+  res.json(await attachViewerState(posts, req.uid));
 }
 
 // POST /api/posts — author fields derived server-side from req.uid.

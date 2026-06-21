@@ -38,7 +38,8 @@ class ApiChatRemoteDataSource implements ChatRemoteDataSource {
   @override
   Stream<List<ChatModel>> watchChats(String uid) {
     late StreamController<List<ChatModel>> controller;
-    void Function(Map<String, dynamic>)? listener;
+    void Function(Map<String, dynamic>)? messageListener;
+    void Function(Map<String, dynamic>)? presenceListener;
 
     Future<void> refresh() async {
       try {
@@ -52,12 +53,15 @@ class ApiChatRemoteDataSource implements ChatRemoteDataSource {
     controller = StreamController<List<ChatModel>>(
       onListen: () async {
         await _socketService.connect();
-        listener = (_) => refresh();
-        _socketService.addMessageListener(listener!);
+        messageListener = (_) => refresh();
+        presenceListener = (_) => refresh();
+        _socketService.addMessageListener(messageListener!);
+        _socketService.addPresenceListener(presenceListener!);
         await refresh();
       },
       onCancel: () {
-        if (listener != null) _socketService.removeMessageListener(listener!);
+        if (messageListener != null) _socketService.removeMessageListener(messageListener!);
+        if (presenceListener != null) _socketService.removePresenceListener(presenceListener!);
       },
     );
 

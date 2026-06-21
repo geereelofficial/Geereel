@@ -31,18 +31,9 @@ abstract class PostRepository {
     int limit = AppConstants.feedPageSize,
   });
 
-  /// Live like state of [postId] for [uid], used by the like button.
-  Stream<bool> watchIsLiked({required String postId, required String uid});
-
   Future<Result<void>> toggleLike({required String postId, required String uid});
 
-  /// Live bookmark state of [postId] for [uid], used by the bookmark button.
-  Stream<bool> watchIsBookmarked({required String postId, required String uid});
-
   Future<Result<void>> toggleBookmark({required String postId, required String uid});
-
-  /// Live repost state of [postId] for [uid], used by the repost button.
-  Stream<bool> watchIsReposted({required String postId, required String uid});
 
   Future<Result<void>> toggleRepost({required String postId, required String uid});
 

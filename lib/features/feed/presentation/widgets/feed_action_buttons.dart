@@ -20,15 +20,11 @@ class FeedActionButtons extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final likeProvider = likeControllerProvider(post.postId, post.likesCount);
-    final likeState = ref.watch(likeProvider).value;
-    final isLiked = likeState?.$1 ?? false;
-    final likeCount = likeState?.$2 ?? post.likesCount;
+    final likeProvider = likeControllerProvider(post.postId, post.likesCount, post.liked);
+    final (isLiked, likeCount) = ref.watch(likeProvider);
 
-    final bookmarkProvider = bookmarkControllerProvider(post.postId, post.bookmarksCount);
-    final bookmarkState = ref.watch(bookmarkProvider).value;
-    final isBookmarked = bookmarkState?.$1 ?? false;
-    final bookmarkCount = bookmarkState?.$2 ?? post.bookmarksCount;
+    final bookmarkProvider = bookmarkControllerProvider(post.postId, post.bookmarksCount, post.bookmarked);
+    final (isBookmarked, bookmarkCount) = ref.watch(bookmarkProvider);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -89,7 +85,8 @@ class _AuthorAvatar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final myUid = ref.watch(authStateProvider).value;
     final isOwnPost = myUid == null || myUid == post.authorId;
-    final isFollowing = isOwnPost ? true : (ref.watch(isFollowingProvider(post.authorId)).value ?? false);
+    final followProvider = feedFollowControllerProvider(post.authorId, post.isFollowingAuthor);
+    final isFollowing = isOwnPost ? true : ref.watch(followProvider);
 
     return GestureDetector(
       onTap: () => context.push('/profile/${post.authorId}'),
@@ -105,7 +102,7 @@ class _AuthorAvatar extends ConsumerWidget {
               Positioned(
                 bottom: -4,
                 child: GestureDetector(
-                  onTap: () => ref.read(followControllerProvider.notifier).follow(post.authorId),
+                  onTap: () => ref.read(followProvider.notifier).follow(),
                   child: Container(
                     width: 22,
                     height: 22,

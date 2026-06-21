@@ -28,6 +28,10 @@ abstract class PostModel with _$PostModel {
     int? height,
     @Default(PostStatus.published) PostStatus status,
     @TimestampConverter() required DateTime createdAt,
+    @Default(false) bool liked,
+    @Default(false) bool bookmarked,
+    @Default(false) bool reposted,
+    @Default(false) bool isFollowingAuthor,
   }) = _PostModel;
 
   factory PostModel.fromJson(Map<String, dynamic> json) => _$PostModelFromJson(json);
@@ -54,5 +58,9 @@ extension PostModelMapper on PostModel {
     height: height,
     status: status,
     createdAt: createdAt,
+    liked: liked,
+    bookmarked: bookmarked,
+    reposted: reposted,
+    isFollowingAuthor: isFollowingAuthor,
   );
 }

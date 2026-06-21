@@ -4,6 +4,7 @@ import 'package:video_player/video_player.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_indicator.dart';
+import '../../../status/presentation/widgets/status_tray.dart';
 import '../../domain/entities/post_entity.dart';
 import '../providers/feed_providers.dart';
 import '../widgets/feed_top_bar.dart';
@@ -27,7 +28,11 @@ class FeedScreen extends ConsumerWidget {
       body: Stack(
         children: [
           _FeedPageView(key: ValueKey(selectedTab), tab: selectedTab),
-          const SafeArea(child: FeedTopBar()),
+          const SafeArea(
+            child: Column(
+              children: [FeedTopBar(), StatusTray()],
+            ),
+          ),
         ],
       ),
     );
@@ -43,18 +48,50 @@ class _FeedPageView extends ConsumerStatefulWidget {
   ConsumerState<_FeedPageView> createState() => _FeedPageViewState();
 }
 
-class _FeedPageViewState extends ConsumerState<_FeedPageView> {
+class _FeedPageViewState extends ConsumerState<_FeedPageView> with WidgetsBindingObserver {
   final PageController _pageController = PageController();
   final Map<int, VideoPlayerController> _controllers = {};
   int _currentIndex = 0;
+  bool _appInForeground = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     for (final controller in _controllers.values) {
       controller.dispose();
     }
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appInForeground = state == AppLifecycleState.resumed;
+    _applyVisibility();
+  }
+
+  /// Whether the active video is allowed to play right now: the Feed tab
+  /// must be the visible bottom-nav branch (not Chat/Profile) and the app
+  /// must be in the foreground (not backgrounded/locked).
+  bool get _shouldPlay => _appInForeground && ref.read(feedTabActiveProvider);
+
+  /// Re-applies [_shouldPlay] to the current page's controller without
+  /// touching pagination or adjacent preloaded controllers — used whenever
+  /// visibility changes rather than the page itself.
+  void _applyVisibility() {
+    final controller = _controllers[_currentIndex];
+    if (controller == null || !controller.value.isInitialized) return;
+    if (_shouldPlay) {
+      if (!controller.value.isPlaying) controller.play();
+    } else if (controller.value.isPlaying) {
+      controller.pause();
+    }
   }
 
   void _syncControllers(List<PostEntity> posts) {
@@ -77,14 +114,14 @@ class _FeedPageViewState extends ConsumerState<_FeedPageView> {
       controller.initialize().then((_) {
         if (!mounted) return;
         controller.setLooping(true);
-        if (i == _currentIndex) controller.play();
+        if (i == _currentIndex && _shouldPlay) controller.play();
         setState(() {});
       });
     }
 
     for (final entry in _controllers.entries) {
       if (!entry.value.value.isInitialized) continue;
-      if (entry.key == _currentIndex) {
+      if (entry.key == _currentIndex && _shouldPlay) {
         if (!entry.value.value.isPlaying) entry.value.play();
       } else {
         if (entry.value.value.isPlaying) entry.value.pause();
@@ -105,6 +142,7 @@ class _FeedPageViewState extends ConsumerState<_FeedPageView> {
   @override
   Widget build(BuildContext context) {
     final feedAsync = ref.watch(feedControllerProvider(widget.tab));
+    ref.listen(feedTabActiveProvider, (_, _) => _applyVisibility());
 
     return feedAsync.when(
       data: (posts) {

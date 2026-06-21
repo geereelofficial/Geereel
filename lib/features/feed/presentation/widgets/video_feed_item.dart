@@ -141,10 +141,8 @@ class _RepostButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final repostProvider = repostControllerProvider(post.postId, post.repostsCount);
-    final repostState = ref.watch(repostProvider).value;
-    final isReposted = repostState?.$1 ?? false;
-    final repostCount = repostState?.$2 ?? post.repostsCount;
+    final repostProvider = repostControllerProvider(post.postId, post.repostsCount, post.reposted);
+    final (isReposted, repostCount) = ref.watch(repostProvider);
 
     return GestureDetector(
       onTap: () => ref.read(repostProvider.notifier).toggle(),
