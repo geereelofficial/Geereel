@@ -33,7 +33,7 @@ class StatusTray extends ConsumerWidget {
         }
 
         return SizedBox(
-          height: 92,
+          height: 100,
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -44,8 +44,23 @@ class StatusTray extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const SizedBox(height: 92),
-      error: (_, _) => const SizedBox.shrink(),
+      loading: () => const SizedBox(height: 100),
+      error: (_, _) => SizedBox(
+        height: 100,
+        child: Center(
+          child: GestureDetector(
+            onTap: () => ref.invalidate(statusTrayProvider),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.refresh, size: 18, color: AppColors.textSecondary),
+                const SizedBox(width: 6),
+                Text('Retry', style: AppTextStyles.bodySecondary),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -58,10 +73,15 @@ class _MyStatusAvatar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasStatus = group != null && group!.statuses.isNotEmpty;
+    // Always show the signed-in user's own profile photo here (not just
+    // when they have an active status), so "Your status" doubles as the
+    // home page's profile-photo affordance, matching how the profile
+    // screen's own avatar looks.
+    final myPhotoUrl = ref.watch(currentUserProfileProvider).value?.photoUrl;
 
     return _TrayItem(
       label: 'Your status',
-      photoUrl: hasStatus ? group!.authorPhotoUrl : null,
+      photoUrl: myPhotoUrl,
       ring: hasStatus
           ? (group!.hasUnviewed ? _Ring.gradient : _Ring.muted)
           : _Ring.none,

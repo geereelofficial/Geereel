@@ -7,6 +7,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_avatar.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../../../core/widgets/primary_button.dart';
+import '../../../../core/widgets/profile_image_viewer.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -63,7 +64,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             _initialized = true;
           }
 
-          return Padding(
+          final photoUrl = profile.photoUrl;
+          final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+
+          return SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -71,7 +75,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 Center(
                   child: Stack(
                     children: [
-                      AppAvatar(photoUrl: profile.photoUrl, radius: 48),
+                      GestureDetector(
+                        onTap: hasPhoto ? () => showProfileImageViewer(context, photoUrl) : null,
+                        child: AppAvatar(photoUrl: photoUrl, radius: 48),
+                      ),
                       Positioned(
                         right: 0,
                         bottom: 0,

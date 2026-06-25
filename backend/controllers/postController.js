@@ -2,9 +2,11 @@ const Post = require('../models/Post');
 const Like = require('../models/Like');
 const Bookmark = require('../models/Bookmark');
 const Repost = require('../models/Repost');
+const Share = require('../models/Share');
 const User = require('../models/User');
 const Follow = require('../models/Follow');
 const { ApiError } = require('../utils/ApiError');
+const { notify } = require('./notificationController');
 
 function toJson(post) {
   return {
@@ -78,6 +80,16 @@ async function getFeed(req, res) {
   res.json(await attachViewerState(posts, req.uid));
 }
 
+// GET /api/posts/:postId — single post, e.g. for opening a shared post link.
+async function getPost(req, res) {
+  const post = await Post.findById(req.params.postId);
+  if (!post) {
+    throw new ApiError(404, 'Post not found.');
+  }
+  const [withState] = await attachViewerState([post], req.uid);
+  res.json(withState);
+}
+
 // GET /api/posts/following?cursor=&limit= — posts authored by accounts the
 // caller follows, reverse-chronological. Empty list if following no one.
 async function getFollowingFeed(req, res) {
@@ -106,6 +118,99 @@ async function getUserPosts(req, res) {
     req.query.cursor,
   );
 
+  const posts = await Post.find(query).sort({ createdAt: -1 }).limit(limit);
+  res.json(await attachViewerState(posts, req.uid));
+}
+
+// GET /api/posts/user/:authorId/liked?cursor=&limit= — self only, since
+// what someone has liked is private (unlike what they've posted/reposted).
+async function getUserLikedPosts(req, res) {
+  const { authorId } = req.params;
+  if (authorId !== req.uid) {
+    throw new ApiError(403, 'You can only view your own liked posts.');
+  }
+
+  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+  const likes = await Like.find({ uid: authorId }).select('postId');
+  if (likes.length === 0) {
+    return res.json([]);
+  }
+
+  const query = buildCursorQuery(
+    { _id: { $in: likes.map((l) => l.postId) }, status: 'published' },
+    req.query.cursor,
+  );
+  const posts = await Post.find(query).sort({ createdAt: -1 }).limit(limit);
+  res.json(await attachViewerState(posts, req.uid));
+}
+
+// GET /api/posts/user/:authorId/reposted?cursor=&limit= — public, like the
+// reposted pill shown on each post in the feed. Each post carries the
+// reposting user's quote text (if any) as `repostComment`, so a quote
+// repost reads the same way on this list as a Twitter/X quote-retweet does.
+async function getUserRepostedPosts(req, res) {
+  const { authorId } = req.params;
+  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+  const reposts = await Repost.find({ uid: authorId }).select('postId comment');
+  if (reposts.length === 0) {
+    return res.json([]);
+  }
+
+  const commentsByPostId = new Map(reposts.map((r) => [r.postId.toString(), r.comment]));
+  const query = buildCursorQuery(
+    { _id: { $in: reposts.map((r) => r.postId) }, status: 'published' },
+    req.query.cursor,
+  );
+  const posts = await Post.find(query).sort({ createdAt: -1 }).limit(limit);
+  const withState = await attachViewerState(posts, req.uid);
+  res.json(
+    withState.map((post) => ({
+      ...post,
+      repostComment: commentsByPostId.get(post.postId) || null,
+    })),
+  );
+}
+
+// GET /api/posts/user/:authorId/bookmarked?cursor=&limit= — self only, since
+// what someone has bookmarked/marked is private, like liked posts.
+async function getUserBookmarkedPosts(req, res) {
+  const { authorId } = req.params;
+  if (authorId !== req.uid) {
+    throw new ApiError(403, 'You can only view your own marked posts.');
+  }
+
+  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+  const bookmarks = await Bookmark.find({ uid: authorId }).select('postId');
+  if (bookmarks.length === 0) {
+    return res.json([]);
+  }
+
+  const query = buildCursorQuery(
+    { _id: { $in: bookmarks.map((b) => b.postId) }, status: 'published' },
+    req.query.cursor,
+  );
+  const posts = await Post.find(query).sort({ createdAt: -1 }).limit(limit);
+  res.json(await attachViewerState(posts, req.uid));
+}
+
+// GET /api/posts/user/:authorId/shared?cursor=&limit= — self only, since
+// what someone has shared isn't otherwise exposed on a post.
+async function getUserSharedPosts(req, res) {
+  const { authorId } = req.params;
+  if (authorId !== req.uid) {
+    throw new ApiError(403, 'You can only view your own shared posts.');
+  }
+
+  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+  const shares = await Share.find({ uid: authorId }).select('postId');
+  if (shares.length === 0) {
+    return res.json([]);
+  }
+
+  const query = buildCursorQuery(
+    { _id: { $in: shares.map((s) => s.postId) }, status: 'published' },
+    req.query.cursor,
+  );
   const posts = await Post.find(query).sort({ createdAt: -1 }).limit(limit);
   res.json(await attachViewerState(posts, req.uid));
 }
@@ -169,6 +274,17 @@ async function like(req, res) {
   }
 
   await Post.updateOne({ _id: postId }, { $inc: { likesCount: 1 } });
+
+  const actor = await User.findById(req.uid);
+  await notify({
+    recipientId: post.authorId,
+    actorId: req.uid,
+    actorUsername: actor.username,
+    actorPhotoUrl: actor.photoUrl,
+    type: 'like',
+    postId,
+  });
+
   res.status(204).end();
 }
 
@@ -226,9 +342,14 @@ async function getReposted(req, res) {
   res.json({ reposted: !!repost });
 }
 
-// POST /api/posts/:postId/repost
+// POST /api/posts/:postId/repost — body may include { comment } for a
+// quote-repost (your own thoughts attached), omitted/empty for a plain
+// repost. Reposting again while already reposted updates the comment
+// instead of double-counting, so switching plain -> quote (or editing a
+// quote) doesn't need a separate endpoint.
 async function repost(req, res) {
   const postId = req.params.postId;
+  const comment = typeof req.body.comment === 'string' ? req.body.comment.trim().slice(0, 300) : '';
 
   const post = await Post.findById(postId);
   if (!post) {
@@ -236,15 +357,27 @@ async function repost(req, res) {
   }
 
   try {
-    await Repost.create({ postId, uid: req.uid });
+    await Repost.create({ postId, uid: req.uid, comment });
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(204).end(); // already reposted — idempotent
+      await Repost.updateOne({ postId, uid: req.uid }, { $set: { comment } });
+      return res.status(204).end(); // already reposted — notified the first time
     }
     throw err;
   }
 
   await Post.updateOne({ _id: postId }, { $inc: { repostsCount: 1 } });
+
+  const actor = await User.findById(req.uid);
+  await notify({
+    recipientId: post.authorId,
+    actorId: req.uid,
+    actorUsername: actor.username,
+    actorPhotoUrl: actor.photoUrl,
+    type: 'repost',
+    postId,
+  });
+
   res.status(204).end();
 }
 
@@ -258,16 +391,23 @@ async function unrepost(req, res) {
   res.status(204).end();
 }
 
-// POST /api/posts/:postId/share
+// POST /api/posts/:postId/share — sharesCount increments on every tap (you
+// can share the same post to multiple people), but the Share record is
+// upserted so the "Shared" profile tab lists each post once regardless of
+// how many times it's been shared.
 async function share(req, res) {
-  const post = await Post.findByIdAndUpdate(
-    req.params.postId,
-    { $inc: { sharesCount: 1 } },
-    { new: true },
-  );
+  const postId = req.params.postId;
+  const post = await Post.findByIdAndUpdate(postId, { $inc: { sharesCount: 1 } }, { new: true });
   if (!post) {
     throw new ApiError(404, 'Post not found.');
   }
+
+  await Share.updateOne(
+    { postId, uid: req.uid },
+    { $setOnInsert: { createdAt: new Date() } },
+    { upsert: true },
+  );
+
   res.status(204).end();
 }
 
@@ -286,9 +426,15 @@ async function view(req, res) {
 
 module.exports = {
   toJson,
+  buildCursorQuery,
+  getPost,
   getFeed,
   getFollowingFeed,
   getUserPosts,
+  getUserLikedPosts,
+  getUserRepostedPosts,
+  getUserBookmarkedPosts,
+  getUserSharedPosts,
   createPost,
   getLiked,
   like,

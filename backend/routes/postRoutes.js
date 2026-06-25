@@ -11,7 +11,13 @@ router.use(requireAuth);
 router.get('/feed', asyncHandler(postController.getFeed));
 router.get('/following', asyncHandler(postController.getFollowingFeed));
 router.get('/user/:authorId', asyncHandler(postController.getUserPosts));
+router.get('/user/:authorId/liked', asyncHandler(postController.getUserLikedPosts));
+router.get('/user/:authorId/reposted', asyncHandler(postController.getUserRepostedPosts));
+router.get('/user/:authorId/bookmarked', asyncHandler(postController.getUserBookmarkedPosts));
+router.get('/user/:authorId/shared', asyncHandler(postController.getUserSharedPosts));
 router.post('/', asyncHandler(postController.createPost));
+
+router.get('/:postId', asyncHandler(postController.getPost));
 
 router.get('/:postId/liked', asyncHandler(postController.getLiked));
 router.post('/:postId/like', asyncHandler(postController.like));

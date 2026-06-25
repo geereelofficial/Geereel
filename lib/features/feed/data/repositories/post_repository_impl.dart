@@ -14,6 +14,16 @@ class PostRepositoryImpl implements PostRepository {
   const PostRepositoryImpl(this._remote);
 
   @override
+  Future<Result<PostEntity>> fetchPost(String postId) async {
+    try {
+      final model = await _remote.fetchPost(postId);
+      return Ok(model.toEntity());
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
   Future<Result<List<PostEntity>>> fetchFeedPage({
     DateTime? startAfterCreatedAt,
     int limit = AppConstants.feedPageSize,
@@ -64,6 +74,78 @@ class PostRepositoryImpl implements PostRepository {
   }
 
   @override
+  Future<Result<List<PostEntity>>> fetchUserLikedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    int limit = AppConstants.feedPageSize,
+  }) async {
+    try {
+      final models = await _remote.fetchUserLikedPosts(
+        authorId: authorId,
+        startAfterCreatedAt: startAfterCreatedAt,
+        limit: limit,
+      );
+      return Ok(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
+  Future<Result<List<PostEntity>>> fetchUserRepostedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    int limit = AppConstants.feedPageSize,
+  }) async {
+    try {
+      final models = await _remote.fetchUserRepostedPosts(
+        authorId: authorId,
+        startAfterCreatedAt: startAfterCreatedAt,
+        limit: limit,
+      );
+      return Ok(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
+  Future<Result<List<PostEntity>>> fetchUserBookmarkedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    int limit = AppConstants.feedPageSize,
+  }) async {
+    try {
+      final models = await _remote.fetchUserBookmarkedPosts(
+        authorId: authorId,
+        startAfterCreatedAt: startAfterCreatedAt,
+        limit: limit,
+      );
+      return Ok(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
+  Future<Result<List<PostEntity>>> fetchUserSharedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    int limit = AppConstants.feedPageSize,
+  }) async {
+    try {
+      final models = await _remote.fetchUserSharedPosts(
+        authorId: authorId,
+        startAfterCreatedAt: startAfterCreatedAt,
+        limit: limit,
+      );
+      return Ok(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
   Future<Result<void>> toggleLike({required String postId, required String uid}) async {
     try {
       await _remote.toggleLike(postId: postId, uid: uid);
@@ -84,9 +166,19 @@ class PostRepositoryImpl implements PostRepository {
   }
 
   @override
-  Future<Result<void>> toggleRepost({required String postId, required String uid}) async {
+  Future<Result<void>> addRepost({required String postId, String? comment}) async {
     try {
-      await _remote.toggleRepost(postId: postId, uid: uid);
+      await _remote.addRepost(postId: postId, comment: comment);
+      return const Ok(null);
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> removeRepost(String postId) async {
+    try {
+      await _remote.removeRepost(postId);
       return const Ok(null);
     } catch (e) {
       return Err(_mapToFailure(e));

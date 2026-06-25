@@ -39,6 +39,12 @@ abstract class AuthRemoteDataSource {
   Future<bool> isFollowing(String targetUid);
 
   Future<List<UserModel>> searchUsers(String query);
+
+  /// Accounts following [uid], newest-follow-first. [page] is 0-based.
+  Future<List<UserModel>> getFollowers(String uid, {required int page, required int limit});
+
+  /// Accounts [uid] follows, newest-follow-first. [page] is 0-based.
+  Future<List<UserModel>> getFollowing(String uid, {required int page, required int limit});
 }
 
 class ApiAuthRemoteDataSource implements AuthRemoteDataSource {
@@ -200,6 +206,24 @@ class ApiAuthRemoteDataSource implements AuthRemoteDataSource {
   @override
   Future<List<UserModel>> searchUsers(String query) async {
     final response = await _apiClient.get('/users/search', query: {'q': query});
+    return (response.data as List).map((json) => UserModel.fromJson(json as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<List<UserModel>> getFollowers(String uid, {required int page, required int limit}) async {
+    final response = await _apiClient.get(
+      '/users/$uid/followers',
+      query: {'page': page, 'limit': limit},
+    );
+    return (response.data as List).map((json) => UserModel.fromJson(json as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<List<UserModel>> getFollowing(String uid, {required int page, required int limit}) async {
+    final response = await _apiClient.get(
+      '/users/$uid/following',
+      query: {'page': page, 'limit': limit},
+    );
     return (response.data as List).map((json) => UserModel.fromJson(json as Map<String, dynamic>)).toList();
   }
 

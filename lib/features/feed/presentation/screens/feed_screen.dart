@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/providers/navigation_providers.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../../status/presentation/widgets/status_tray.dart';
@@ -77,9 +78,14 @@ class _FeedPageViewState extends ConsumerState<_FeedPageView> with WidgetsBindin
   }
 
   /// Whether the active video is allowed to play right now: the Feed tab
-  /// must be the visible bottom-nav branch (not Chat/Profile) and the app
-  /// must be in the foreground (not backgrounded/locked).
-  bool get _shouldPlay => _appInForeground && ref.read(feedTabActiveProvider);
+  /// must be the visible bottom-nav branch (not Chat/Profile), the app must
+  /// be in the foreground (not backgrounded/locked), and no other screen
+  /// (e.g. a profile pushed by tapping the avatar/username) must be covering
+  /// the feed.
+  bool get _shouldPlay =>
+      _appInForeground &&
+      ref.read(feedTabActiveProvider) &&
+      !ref.read(isShellCoveredProvider);
 
   /// Re-applies [_shouldPlay] to the current page's controller without
   /// touching pagination or adjacent preloaded controllers — used whenever
@@ -143,6 +149,7 @@ class _FeedPageViewState extends ConsumerState<_FeedPageView> with WidgetsBindin
   Widget build(BuildContext context) {
     final feedAsync = ref.watch(feedControllerProvider(widget.tab));
     ref.listen(feedTabActiveProvider, (_, _) => _applyVisibility());
+    ref.listen(isShellCoveredProvider, (_, _) => _applyVisibility());
 
     return feedAsync.when(
       data: (posts) {

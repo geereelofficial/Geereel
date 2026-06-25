@@ -72,7 +72,10 @@ class _StatusViewersSheet extends ConsumerWidget {
                   );
                 },
                 loading: () => const LoadingIndicator(),
-                error: (error, _) => ErrorView(message: error.toString()),
+                error: (error, _) => ErrorView(
+                  message: error.toString(),
+                  onRetry: () => ref.invalidate(statusViewersProvider(statusId)),
+                ),
               ),
             ),
           ],

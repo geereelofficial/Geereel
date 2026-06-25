@@ -39,6 +39,11 @@ function messageToJson(message) {
 // batched User query, regardless of how many chats are in the list — same
 // shape as posts' attachViewerState, so the client never needs a separate
 // per-chat "is this person online" round trip.
+//
+// Also overrides participantInfo's username/photoUrl with each user's
+// current values: participantInfo is only written once when the chat
+// document is first created, so without this a profile photo added after
+// the chat already exists would never show up in the inbox.
 async function attachPresence(chats) {
   if (chats.length === 0) return [];
 
@@ -47,18 +52,25 @@ async function attachPresence(chats) {
     for (const id of chat.participantIds) participantIds.add(id);
   }
 
-  const users = await User.find({ _id: { $in: [...participantIds] } }).select('lastActiveAt');
-  const lastActiveById = new Map(users.map((u) => [u._id, u.lastActiveAt]));
+  const users = await User.find({ _id: { $in: [...participantIds] } }).select(
+    'lastActiveAt username photoUrl',
+  );
+  const userById = new Map(users.map((u) => [u._id, u]));
 
   return chats.map((chat) => {
     const chatPresence = {};
+    const participantInfo = mapToPlainObject(chat.participantInfo);
     for (const id of chat.participantIds) {
+      const user = userById.get(id);
       chatPresence[id] = {
         online: presence.isOnline(id),
-        lastActiveAt: lastActiveById.get(id) || null,
+        lastActiveAt: user ? user.lastActiveAt : null,
       };
+      if (user) {
+        participantInfo[id] = { username: user.username, photoUrl: user.photoUrl };
+      }
     }
-    return { ...toJson(chat), presence: chatPresence };
+    return { ...toJson(chat), participantInfo, presence: chatPresence };
   });
 }
 

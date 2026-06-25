@@ -1,4 +1,5 @@
 import '../../../../core/utils/result.dart';
+import '../entities/comment_entity.dart';
 import '../repositories/comment_repository.dart';
 
 class AddComment {
@@ -6,7 +7,7 @@ class AddComment {
 
   const AddComment(this._repository);
 
-  Future<Result<void>> call({
+  Future<Result<CommentEntity>> call({
     required String postId,
     required String authorId,
     required String authorUsername,

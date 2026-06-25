@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/providers/api_providers.dart';
 import '../../../../core/utils/result.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
@@ -8,6 +9,8 @@ import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/check_is_following.dart';
 import '../../domain/usecases/follow_user.dart';
+import '../../domain/usecases/get_followers.dart';
+import '../../domain/usecases/get_following.dart';
 import '../../domain/usecases/search_users.dart';
 import '../../domain/usecases/sign_in_with_email.dart';
 import '../../domain/usecases/sign_in_with_google.dart';
@@ -62,6 +65,12 @@ CheckIsFollowing checkIsFollowingUseCase(Ref ref) => CheckIsFollowing(ref.watch(
 @riverpod
 SearchUsers searchUsersUseCase(Ref ref) => SearchUsers(ref.watch(authRepositoryProvider));
 
+@riverpod
+GetFollowers getFollowersUseCase(Ref ref) => GetFollowers(ref.watch(authRepositoryProvider));
+
+@riverpod
+GetFollowing getFollowingUseCase(Ref ref) => GetFollowing(ref.watch(authRepositoryProvider));
+
 /// Emits the signed-in user's uid, or null when signed out. Drives the
 /// router's auth redirect.
 @riverpod
@@ -93,6 +102,62 @@ Future<bool> isFollowing(Ref ref, String targetUid) async {
     Ok(value: final following) => following,
     Err() => false,
   };
+}
+
+/// Which direction of the follow graph a [FollowListController] is paging
+/// through.
+enum FollowListKind { followers, following }
+
+/// Paginated followers/following list for one profile, keyed by (uid, kind)
+/// so each list keeps independent page state. Uses page-number rather than
+/// a createdAt cursor since the wire format is a plain list of user
+/// profiles with no follow-edge timestamp to hand back as a cursor.
+@riverpod
+class FollowListController extends _$FollowListController {
+  int _page = 0;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+
+  bool get hasMore => _hasMore;
+  bool get isLoadingMore => _isLoadingMore;
+
+  Future<Result<List<UserEntity>>> _fetchPage(String uid, FollowListKind kind, int page) {
+    return kind == FollowListKind.followers
+        ? ref.read(getFollowersUseCaseProvider).call(uid, page: page)
+        : ref.read(getFollowingUseCaseProvider).call(uid, page: page);
+  }
+
+  @override
+  Future<List<UserEntity>> build(String uid, FollowListKind kind) async {
+    _page = 0;
+    _hasMore = true;
+    final result = await _fetchPage(uid, kind, _page);
+    return switch (result) {
+      Ok(value: final users) => users,
+      Err(failure: final failure) => throw failure,
+    };
+  }
+
+  Future<void> loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    final current = state.value;
+    if (current == null) return;
+
+    _isLoadingMore = true;
+    final nextPage = _page + 1;
+    final result = await _fetchPage(uid, kind, nextPage);
+    _isLoadingMore = false;
+
+    switch (result) {
+      case Ok(value: final newUsers):
+        if (newUsers.length < AppConstants.followListPageSize) _hasMore = false;
+        if (newUsers.isEmpty) return;
+        _page = nextPage;
+        state = AsyncData([...current, ...newUsers]);
+      case Err():
+        break;
+    }
+  }
 }
 
 /// Drives the follow/unfollow button on a profile. Invalidates
@@ -210,22 +275,28 @@ class EditProfileController extends _$EditProfileController {
       displayName: displayName,
       bio: bio,
     );
-    return _handle(result);
+    if (!ref.mounted) return result.isOk;
+    return _handle(result, uid);
   }
 
   Future<bool> uploadAvatar({required String uid, required File file}) async {
     state = const AsyncLoading();
     final result = await ref.read(uploadAvatarUseCaseProvider).call(uid: uid, file: file);
-    return switch (result) {
-      Ok() => _handle(const Ok(null)),
-      Err(failure: final failure) => _handle(Err(failure)),
-    };
+    if (!ref.mounted) return result.isOk;
+    return _handle(result, uid);
   }
 
-  bool _handle(Result result) {
+  /// On success, invalidates both [currentUserProfileProvider] (the
+  /// signed-in user's own profile stream) and the [userProfileProvider]
+  /// family entry for this uid — other screens watch one or the other, and
+  /// neither auto-refreshes on its own since [watchUserProfile] is a
+  /// one-shot fetch, not a live subscription.
+  bool _handle(Result result, String uid) {
     switch (result) {
       case Ok():
         state = const AsyncData(null);
+        ref.invalidate(currentUserProfileProvider);
+        ref.invalidate(userProfileProvider(uid));
         return true;
       case Err(failure: final failure):
         state = AsyncError(failure, StackTrace.current);

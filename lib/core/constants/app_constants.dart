@@ -8,6 +8,7 @@ class AppConstants {
   static const int feedPageSize = 10;
   static const int commentsPageSize = 20;
   static const int messagesPageSize = 30;
+  static const int followListPageSize = 20;
 
   static const int maxCaptionLength = 300;
   static const int maxBioLength = 150;

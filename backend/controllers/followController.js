@@ -1,6 +1,8 @@
 const Follow = require('../models/Follow');
 const User = require('../models/User');
 const { ApiError } = require('../utils/ApiError');
+const { toJson: userToJson } = require('./userController');
+const { notify } = require('./notificationController');
 
 // POST /api/users/:uid/follow
 async function follow(req, res) {
@@ -28,6 +30,15 @@ async function follow(req, res) {
     User.updateOne({ _id: followingId }, { $inc: { followersCount: 1 } }),
   ]);
 
+  const actor = await User.findById(req.uid);
+  await notify({
+    recipientId: followingId,
+    actorId: req.uid,
+    actorUsername: actor.username,
+    actorPhotoUrl: actor.photoUrl,
+    type: 'follow',
+  });
+
   res.status(204).end();
 }
 
@@ -50,4 +61,46 @@ async function isFollowing(req, res) {
   res.json({ following: !!match });
 }
 
-module.exports = { follow, unfollow, isFollowing };
+// Resolves a page of Follow edges (newest first) into the User documents on
+// the other end, preserving follow order. Skip/limit rather than a
+// createdAt cursor since the response is plain user profiles with no
+// follow-edge timestamp to hand back as a cursor.
+async function resolveFollowPage(query, { page, limit }) {
+  const follows = await Follow.find(query)
+    .sort({ createdAt: -1 })
+    .skip(page * limit)
+    .limit(limit);
+  if (follows.length === 0) return [];
+
+  const idField = query.followingId ? 'followerId' : 'followingId';
+  const userIds = follows.map((f) => f[idField]);
+  const users = await User.find({ _id: { $in: userIds } });
+  const usersById = new Map(users.map((u) => [u._id, u]));
+  return follows.map((f) => usersById.get(f[idField])).filter(Boolean);
+}
+
+function parsePageParams(req) {
+  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+  const page = Math.max(parseInt(req.query.page, 10) || 0, 0);
+  return { page, limit };
+}
+
+// GET /api/users/:uid/followers?page=&limit= — accounts following :uid.
+async function getFollowers(req, res) {
+  const users = await resolveFollowPage(
+    { followingId: req.params.uid },
+    parsePageParams(req),
+  );
+  res.json(users.map(userToJson));
+}
+
+// GET /api/users/:uid/following?page=&limit= — accounts :uid follows.
+async function getFollowing(req, res) {
+  const users = await resolveFollowPage(
+    { followerId: req.params.uid },
+    parsePageParams(req),
+  );
+  res.json(users.map(userToJson));
+}
+
+module.exports = { follow, unfollow, isFollowing, getFollowers, getFollowing };

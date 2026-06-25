@@ -1,4 +1,5 @@
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/utils/result.dart';
 import '../entities/comment_entity.dart';
 import '../repositories/comment_repository.dart';
 
@@ -7,10 +8,11 @@ class GetComments {
 
   const GetComments(this._repository);
 
-  Stream<List<CommentEntity>> call(
+  Future<Result<List<CommentEntity>>> call(
     String postId, {
     int limit = AppConstants.commentsPageSize,
+    DateTime? before,
   }) {
-    return _repository.watchComments(postId, limit: limit);
+    return _repository.fetchComments(postId, limit: limit, before: before);
   }
 }

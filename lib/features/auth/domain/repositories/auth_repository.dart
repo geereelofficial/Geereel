@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/result.dart';
 import '../entities/user_entity.dart';
 
@@ -51,4 +52,18 @@ abstract class AuthRepository {
 
   /// Searches users by username/display name, excluding the caller.
   Future<Result<List<UserEntity>>> searchUsers(String query);
+
+  /// Accounts following [uid], newest-follow-first. [page] is 0-based.
+  Future<Result<List<UserEntity>>> getFollowers(
+    String uid, {
+    required int page,
+    int limit = AppConstants.followListPageSize,
+  });
+
+  /// Accounts [uid] follows, newest-follow-first. [page] is 0-based.
+  Future<Result<List<UserEntity>>> getFollowing(
+    String uid, {
+    required int page,
+    int limit = AppConstants.followListPageSize,
+  });
 }

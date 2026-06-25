@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_text_styles.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
@@ -11,7 +12,11 @@ import 'comment_tile.dart';
 
 /// Opens the comment list + composer for [postId] as a draggable bottom
 /// sheet, mirroring TikTok's comment drawer.
-void showCommentBottomSheet(BuildContext context, {required String postId}) {
+void showCommentBottomSheet(
+  BuildContext context, {
+  required String postId,
+  required int initialCommentCount,
+}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -19,14 +24,15 @@ void showCommentBottomSheet(BuildContext context, {required String postId}) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
-    builder: (context) => _CommentSheet(postId: postId),
+    builder: (context) => _CommentSheet(postId: postId, initialCommentCount: initialCommentCount),
   );
 }
 
 class _CommentSheet extends ConsumerStatefulWidget {
   final String postId;
+  final int initialCommentCount;
 
-  const _CommentSheet({required this.postId});
+  const _CommentSheet({required this.postId, required this.initialCommentCount});
 
   @override
   ConsumerState<_CommentSheet> createState() => _CommentSheetState();
@@ -50,23 +56,40 @@ class _CommentSheetState extends ConsumerState<_CommentSheet> {
     if (profile == null) return;
 
     setState(() => _isPosting = true);
-    await ref.read(addCommentUseCaseProvider).call(
+    final result = await ref.read(addCommentUseCaseProvider).call(
       postId: widget.postId,
       authorId: profile.uid,
       authorUsername: profile.username,
       authorPhotoUrl: profile.photoUrl,
       text: text,
     );
-    ref.invalidate(postCommentsProvider(widget.postId));
-    if (mounted) {
-      _textController.clear();
-      setState(() => _isPosting = false);
+
+    if (!mounted) return;
+    setState(() => _isPosting = false);
+
+    switch (result) {
+      case Ok(value: final comment):
+        ref.read(commentsControllerProvider(widget.postId).notifier).prependLocal(comment);
+        ref
+            .read(commentCountControllerProvider(widget.postId, widget.initialCommentCount).notifier)
+            .increment();
+        _textController.clear();
+      case Err():
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not post your comment. Please try again.')),
+        );
+    }
+  }
+
+  void _onScroll(ScrollMetrics metrics) {
+    if (metrics.pixels >= metrics.maxScrollExtent - 300) {
+      ref.read(commentsControllerProvider(widget.postId).notifier).loadMore();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final commentsAsync = ref.watch(postCommentsProvider(widget.postId));
+    final commentsAsync = ref.watch(commentsControllerProvider(widget.postId));
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
@@ -96,15 +119,24 @@ class _CommentSheetState extends ConsumerState<_CommentSheet> {
                       child: Text('No comments yet. Be the first!', style: AppTextStyles.bodySecondary),
                     );
                   }
-                  return ListView.builder(
-                    controller: scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: comments.length,
-                    itemBuilder: (context, index) => CommentTile(comment: comments[index]),
+                  return NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      _onScroll(notification.metrics);
+                      return false;
+                    },
+                    child: ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: comments.length,
+                      itemBuilder: (context, index) => CommentTile(comment: comments[index]),
+                    ),
                   );
                 },
                 loading: () => const LoadingIndicator(),
-                error: (error, _) => ErrorView(message: error.toString()),
+                error: (error, _) => ErrorView(
+                  message: error.toString(),
+                  onRetry: () => ref.invalidate(commentsControllerProvider(widget.postId)),
+                ),
               ),
             ),
             SafeArea(

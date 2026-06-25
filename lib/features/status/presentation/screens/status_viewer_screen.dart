@@ -216,6 +216,7 @@ class _StatusViewerScreenState extends ConsumerState<StatusViewerScreen>
         error: (error, _) => _ClosablePlaceholder(
           message: 'Could not load this status.\n$error',
           onClose: () => context.pop(),
+          onRetry: () => ref.invalidate(userStatusesProvider(_authorId)),
         ),
       ),
     );
@@ -363,8 +364,9 @@ class _ViewersButton extends StatelessWidget {
 class _ClosablePlaceholder extends StatelessWidget {
   final String message;
   final VoidCallback onClose;
+  final VoidCallback? onRetry;
 
-  const _ClosablePlaceholder({required this.message, required this.onClose});
+  const _ClosablePlaceholder({required this.message, required this.onClose, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -373,7 +375,19 @@ class _ClosablePlaceholder extends StatelessWidget {
         Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text(message, textAlign: TextAlign.center, style: AppTextStyles.body),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(message, textAlign: TextAlign.center, style: AppTextStyles.body),
+                if (onRetry != null) ...[
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: onRetry,
+                    child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
         SafeArea(

@@ -1,15 +1,21 @@
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import '../../core/providers/navigation_providers.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/chat/presentation/screens/chat_list_screen.dart';
 import '../../features/chat/presentation/screens/chat_screen.dart';
+import '../../features/feed/presentation/providers/feed_providers.dart';
 import '../../features/feed/presentation/screens/feed_screen.dart';
+import '../../features/feed/presentation/screens/post_detail_screen.dart';
+import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
+import '../../features/profile/presentation/screens/follow_list_screen.dart';
 import '../../features/profile/presentation/screens/my_profile_screen.dart';
+import '../../features/profile/presentation/screens/profile_post_viewer_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/screens/settings_screen.dart';
 import '../../features/search/presentation/screens/search_screen.dart';
@@ -37,6 +43,7 @@ GoRouter goRouter(Ref ref) {
   return GoRouter(
     initialLocation: '/splash',
     refreshListenable: refreshNotifier,
+    observers: [routeObserver],
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);
       final path = state.matchedLocation;
@@ -70,6 +77,18 @@ GoRouter goRouter(Ref ref) {
         },
       ),
       GoRoute(path: '/search', builder: (context, state) => const SearchScreen()),
+      GoRoute(
+        path: '/post/:postId',
+        // No-transition (rather than the default slide-in) so opening a
+        // post from a profile grid or a shared link feels like landing
+        // directly on that post in the feed, not navigating to a
+        // different screen.
+        pageBuilder: (context, state) {
+          return NoTransitionPage(
+            child: PostDetailScreen(postId: state.pathParameters['postId']!),
+          );
+        },
+      ),
       GoRoute(path: '/status/create', builder: (context, state) => const CreateStatusScreen()),
       GoRoute(
         path: '/status/:authorId',
@@ -85,6 +104,44 @@ GoRouter goRouter(Ref ref) {
           return ProfileScreen(uid: state.pathParameters['uid']!);
         },
       ),
+      GoRoute(
+        path: '/profile/:uid/followers',
+        builder: (context, state) {
+          return FollowListScreen(
+            uid: state.pathParameters['uid']!,
+            kind: FollowListKind.followers,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/profile/:uid/following',
+        builder: (context, state) {
+          return FollowListScreen(
+            uid: state.pathParameters['uid']!,
+            kind: FollowListKind.following,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/profile/:uid/posts/:postId',
+        // No-transition, matching /post/:postId, so tapping a grid tile
+        // feels like landing directly on that post rather than navigating
+        // to a different screen.
+        pageBuilder: (context, state) {
+          final tabName = state.uri.queryParameters['tab'];
+          final tab = ProfilePostsTab.values.firstWhere(
+            (t) => t.name == tabName,
+            orElse: () => ProfilePostsTab.uploaded,
+          );
+          return NoTransitionPage(
+            child: ProfilePostViewerScreen(
+              uid: state.pathParameters['uid']!,
+              tab: tab,
+              initialPostId: state.pathParameters['postId']!,
+            ),
+          );
+        },
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => HomeShell(navigationShell: navigationShell),
         branches: [
@@ -93,6 +150,11 @@ GoRouter goRouter(Ref ref) {
           ),
           StatefulShellBranch(
             routes: [GoRoute(path: '/chats', builder: (context, state) => const ChatListScreen())],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
+            ],
           ),
           StatefulShellBranch(
             routes: [GoRoute(path: '/me', builder: (context, state) => const MyProfileScreen())],

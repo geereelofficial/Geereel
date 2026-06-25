@@ -1,20 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/providers/navigation_providers.dart';
 import '../../features/feed/presentation/providers/feed_providers.dart';
+import '../../features/notifications/presentation/providers/notification_providers.dart';
 import '../theme/app_colors.dart';
 
-/// Bottom navigation shell for the three persistent tabs (Feed, Chat,
-/// Profile). "Upload" sits visually between Chat and Profile but isn't a
-/// stateful branch — tapping it pushes /upload as a one-off screen instead
-/// of switching tabs, matching TikTok's center "+" button.
-class HomeShell extends ConsumerWidget {
+/// Bottom navigation shell for the four persistent tabs (Feed, Chat,
+/// Notifications, Profile). "Upload" sits visually between Chat and
+/// Notifications but isn't a stateful branch — tapping it pushes /upload as
+/// a one-off screen instead of switching tabs, matching TikTok's center "+"
+/// button.
+class HomeShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
 
   const HomeShell({super.key, required this.navigationShell});
 
-  static const _branchForVisualIndex = {0: 0, 1: 1, 3: 2};
-  static const _visualIndexForBranch = {0: 0, 1: 1, 2: 3};
+  @override
+  ConsumerState<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends ConsumerState<HomeShell> with RouteAware {
+  static const _branchForVisualIndex = {0: 0, 1: 1, 3: 2, 4: 3};
+  static const _visualIndexForBranch = {0: 0, 1: 1, 2: 3, 3: 4};
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  // A top-level screen (profile, post detail, chat, search, ...) was
+  // pushed on top of the shell's own root-level route.
+  @override
+  void didPushNext() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(isShellCoveredProvider.notifier).set(true);
+    });
+  }
+
+  // That screen was popped, so the shell is visible again.
+  @override
+  void didPopNext() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(isShellCoveredProvider.notifier).set(false);
+    });
+  }
 
   void _onTap(BuildContext context, int visualIndex) {
     if (visualIndex == 2) {
@@ -22,36 +59,46 @@ class HomeShell extends ConsumerWidget {
       return;
     }
     final branchIndex = _branchForVisualIndex[visualIndex]!;
-    navigationShell.goBranch(
+    widget.navigationShell.goBranch(
       branchIndex,
-      initialLocation: branchIndex == navigationShell.currentIndex,
+      initialLocation: branchIndex == widget.navigationShell.currentIndex,
+    );
+  }
+
+  Widget _notificationsIcon(WidgetRef ref) {
+    final count = ref.watch(unreadNotificationCountProvider).value ?? 0;
+    return Badge(
+      label: Text('$count'),
+      isLabelVisible: count > 0,
+      child: const Icon(Icons.notifications),
     );
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final currentVisualIndex = _visualIndexForBranch[navigationShell.currentIndex] ?? 0;
+  Widget build(BuildContext context) {
+    final currentVisualIndex = _visualIndexForBranch[widget.navigationShell.currentIndex] ?? 0;
 
     // Deferred to a post-frame callback because this runs during HomeShell's
     // own build, and Riverpod disallows mutating a different provider's
     // state mid-build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(feedTabActiveProvider.notifier).set(navigationShell.currentIndex == 0);
+      ref.read(feedTabActiveProvider.notifier).set(widget.navigationShell.currentIndex == 0);
     });
 
     return Scaffold(
-      body: navigationShell,
+      body: widget.navigationShell,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentVisualIndex,
         onTap: (index) => _onTap(context, index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble), label: 'Inbox'),
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          const BottomNavigationBarItem(icon: Icon(Icons.chat_bubble), label: 'Inbox'),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.add_box, color: AppColors.primary, size: 32),
             label: 'Post',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: _notificationsIcon(ref), label: 'Notifications'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );

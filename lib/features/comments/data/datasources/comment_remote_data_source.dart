@@ -2,9 +2,13 @@ import '../../../../core/network/api_client.dart';
 import '../models/comment_model.dart';
 
 abstract class CommentRemoteDataSource {
-  Stream<List<CommentModel>> watchComments(String postId, {required int limit});
+  /// One page of comments, newest first. Pass [before] (the last comment's
+  /// `createdAt` from the previous page) to fetch the next page.
+  Future<List<CommentModel>> getComments(String postId, {required int limit, DateTime? before});
 
-  Future<void> addComment({
+  /// Returns the server-created comment (with its real id/timestamp) so the
+  /// caller can insert it locally without refetching the whole list.
+  Future<CommentModel> addComment({
     required String postId,
     required String authorId,
     required String authorUsername,
@@ -19,25 +23,32 @@ class ApiCommentRemoteDataSource implements CommentRemoteDataSource {
   ApiCommentRemoteDataSource({required ApiClient apiClient}) : _apiClient = apiClient;
 
   @override
-  Stream<List<CommentModel>> watchComments(String postId, {required int limit}) {
-    return Stream.fromFuture(_fetchComments(postId, limit: limit));
-  }
-
-  Future<List<CommentModel>> _fetchComments(String postId, {required int limit}) async {
-    final response = await _apiClient.get('/posts/$postId/comments', query: {'limit': limit});
+  Future<List<CommentModel>> getComments(
+    String postId, {
+    required int limit,
+    DateTime? before,
+  }) async {
+    final response = await _apiClient.get(
+      '/posts/$postId/comments',
+      query: {
+        'limit': limit,
+        if (before != null) 'cursor': before.toIso8601String(),
+      },
+    );
     return (response.data as List)
         .map((json) => CommentModel.fromJson(json as Map<String, dynamic>))
         .toList();
   }
 
   @override
-  Future<void> addComment({
+  Future<CommentModel> addComment({
     required String postId,
     required String authorId,
     required String authorUsername,
     String? authorPhotoUrl,
     required String text,
   }) async {
-    await _apiClient.post('/posts/$postId/comments', data: {'text': text});
+    final response = await _apiClient.post('/posts/$postId/comments', data: {'text': text});
+    return CommentModel.fromJson(response.data as Map<String, dynamic>);
   }
 }

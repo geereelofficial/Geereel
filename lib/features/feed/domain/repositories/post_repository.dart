@@ -8,6 +8,9 @@ import '../entities/post_entity.dart';
 /// Shared by the feed feature (reading/liking) and the upload feature
 /// (creating), since both operate on the same `posts` collection.
 abstract class PostRepository {
+  /// Fetches a single post by id, e.g. for opening a shared post link.
+  Future<Result<PostEntity>> fetchPost(String postId);
+
   /// Fetches one reverse-chronological page of the global feed.
   ///
   /// Pass [startAfterCreatedAt] (the last item of the previous page) to
@@ -31,11 +34,47 @@ abstract class PostRepository {
     int limit = AppConstants.feedPageSize,
   });
 
+  /// Posts [authorId] has liked, newest-post-first. Only the signed-in
+  /// caller can fetch their own liked posts (backend enforces this).
+  Future<Result<List<PostEntity>>> fetchUserLikedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    int limit = AppConstants.feedPageSize,
+  });
+
+  /// Posts [authorId] has reposted, newest-post-first.
+  Future<Result<List<PostEntity>>> fetchUserRepostedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    int limit = AppConstants.feedPageSize,
+  });
+
+  /// Posts [authorId] has bookmarked/marked, newest-post-first. Only the
+  /// signed-in caller can fetch their own marked posts (backend enforces this).
+  Future<Result<List<PostEntity>>> fetchUserBookmarkedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    int limit = AppConstants.feedPageSize,
+  });
+
+  /// Posts [authorId] has shared, newest-post-first. Only the signed-in
+  /// caller can fetch their own shared posts (backend enforces this).
+  Future<Result<List<PostEntity>>> fetchUserSharedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    int limit = AppConstants.feedPageSize,
+  });
+
   Future<Result<void>> toggleLike({required String postId, required String uid});
 
   Future<Result<void>> toggleBookmark({required String postId, required String uid});
 
-  Future<Result<void>> toggleRepost({required String postId, required String uid});
+  /// Reposts [postId], optionally with [comment] attached as a quote-repost.
+  /// Reposting again while already reposted updates the comment instead of
+  /// erroring, so this also covers "edit your quote".
+  Future<Result<void>> addRepost({required String postId, String? comment});
+
+  Future<Result<void>> removeRepost(String postId);
 
   Future<Result<void>> incrementShareCount(String postId);
 

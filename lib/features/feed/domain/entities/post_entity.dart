@@ -33,5 +33,9 @@ abstract class PostEntity with _$PostEntity {
     @Default(false) bool bookmarked,
     @Default(false) bool reposted,
     @Default(false) bool isFollowingAuthor,
+    // The reposting user's quote text, e.g. "Your thoughts" on a quote
+    // repost. Only ever populated on a "my reposts" list response — null
+    // everywhere else (main feed, uploaded posts, ...).
+    String? repostComment,
   }) = _PostEntity;
 }

@@ -7,6 +7,7 @@ import '../../../../app/theme/app_text_styles.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_avatar.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../comments/presentation/providers/comment_providers.dart';
 import '../../../comments/presentation/widgets/comment_bottom_sheet.dart';
 import '../../domain/entities/post_entity.dart';
 import '../providers/feed_providers.dart';
@@ -26,6 +27,8 @@ class FeedActionButtons extends ConsumerWidget {
     final bookmarkProvider = bookmarkControllerProvider(post.postId, post.bookmarksCount, post.bookmarked);
     final (isBookmarked, bookmarkCount) = ref.watch(bookmarkProvider);
 
+    final commentCount = ref.watch(commentCountControllerProvider(post.postId, post.commentsCount));
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -41,8 +44,12 @@ class FeedActionButtons extends ConsumerWidget {
         const SizedBox(height: 18),
         _ActionButton(
           icon: Icons.mode_comment,
-          label: Formatters.compactCount(post.commentsCount),
-          onTap: () => showCommentBottomSheet(context, postId: post.postId),
+          label: Formatters.compactCount(commentCount),
+          onTap: () => showCommentBottomSheet(
+            context,
+            postId: post.postId,
+            initialCommentCount: post.commentsCount,
+          ),
         ),
         const SizedBox(height: 18),
         _ActionButton(
@@ -65,9 +72,12 @@ class FeedActionButtons extends ConsumerWidget {
   Future<void> _onShare(BuildContext context, WidgetRef ref) async {
     ref.read(postRepositoryProvider).incrementShareCount(post.postId);
 
+    // Triple slash (empty authority) so the path is "/post/<id>" rather than
+    // parsing "post" as the URI's host — see PostDetailScreen/app_router.
+    final link = 'geereel:///post/${post.postId}';
     final text = post.caption.isNotEmpty
-        ? '${post.caption}\n\nWatch on Geereel — @${post.authorUsername}\n${post.mediaUrl}'
-        : 'Check out this video by @${post.authorUsername} on Geereel:\n${post.mediaUrl}';
+        ? '${post.caption}\n\nWatch on Geereel — @${post.authorUsername}\n$link'
+        : 'Check out this video by @${post.authorUsername} on Geereel:\n$link';
 
     await SharePlus.instance.share(ShareParams(text: text));
   }

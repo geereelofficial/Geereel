@@ -7,13 +7,19 @@ import '../../data/datasources/post_remote_data_source.dart';
 import '../../data/repositories/post_repository_impl.dart';
 import '../../domain/entities/post_entity.dart';
 import '../../domain/repositories/post_repository.dart';
+import '../../domain/usecases/add_repost.dart';
 import '../../domain/usecases/create_post.dart';
 import '../../domain/usecases/get_feed_page.dart';
 import '../../domain/usecases/get_following_feed_page.dart';
+import '../../domain/usecases/get_post.dart';
+import '../../domain/usecases/get_user_bookmarked_posts.dart';
+import '../../domain/usecases/get_user_liked_posts.dart';
 import '../../domain/usecases/get_user_posts.dart';
+import '../../domain/usecases/get_user_reposted_posts.dart';
+import '../../domain/usecases/get_user_shared_posts.dart';
+import '../../domain/usecases/remove_repost.dart';
 import '../../domain/usecases/toggle_bookmark.dart';
 import '../../domain/usecases/toggle_like.dart';
-import '../../domain/usecases/toggle_repost.dart';
 
 part 'feed_providers.g.dart';
 
@@ -69,7 +75,10 @@ ToggleLike toggleLikeUseCase(Ref ref) => ToggleLike(ref.watch(postRepositoryProv
 ToggleBookmark toggleBookmarkUseCase(Ref ref) => ToggleBookmark(ref.watch(postRepositoryProvider));
 
 @riverpod
-ToggleRepost toggleRepostUseCase(Ref ref) => ToggleRepost(ref.watch(postRepositoryProvider));
+AddRepost addRepostUseCase(Ref ref) => AddRepost(ref.watch(postRepositoryProvider));
+
+@riverpod
+RemoveRepost removeRepostUseCase(Ref ref) => RemoveRepost(ref.watch(postRepositoryProvider));
 
 @riverpod
 CreatePost createPostUseCase(Ref ref) => CreatePost(ref.watch(postRepositoryProvider));
@@ -77,12 +86,32 @@ CreatePost createPostUseCase(Ref ref) => CreatePost(ref.watch(postRepositoryProv
 @riverpod
 GetUserPosts getUserPostsUseCase(Ref ref) => GetUserPosts(ref.watch(postRepositoryProvider));
 
-/// One-shot (non-paginated) post grid for a profile screen.
 @riverpod
-Future<List<PostEntity>> userPosts(Ref ref, String authorId) async {
-  final result = await ref.watch(getUserPostsUseCaseProvider).call(authorId: authorId);
+GetUserLikedPosts getUserLikedPostsUseCase(Ref ref) =>
+    GetUserLikedPosts(ref.watch(postRepositoryProvider));
+
+@riverpod
+GetUserRepostedPosts getUserRepostedPostsUseCase(Ref ref) =>
+    GetUserRepostedPosts(ref.watch(postRepositoryProvider));
+
+@riverpod
+GetUserBookmarkedPosts getUserBookmarkedPostsUseCase(Ref ref) =>
+    GetUserBookmarkedPosts(ref.watch(postRepositoryProvider));
+
+@riverpod
+GetUserSharedPosts getUserSharedPostsUseCase(Ref ref) =>
+    GetUserSharedPosts(ref.watch(postRepositoryProvider));
+
+@riverpod
+GetPost getPostUseCase(Ref ref) => GetPost(ref.watch(postRepositoryProvider));
+
+/// A single post by id, for opening a shared post link directly to that
+/// post rather than the paginated feed.
+@riverpod
+Future<PostEntity> singlePost(Ref ref, String postId) async {
+  final result = await ref.watch(getPostUseCaseProvider).call(postId);
   return switch (result) {
-    Ok(value: final posts) => posts,
+    Ok(value: final post) => post,
     Err(failure: final failure) => throw failure,
   };
 }
@@ -129,6 +158,82 @@ class FeedController extends _$FeedController {
         state = AsyncData([...current, ...newPosts]);
       case Err():
         // Keep showing the existing page; the user can pull to refresh.
+        break;
+    }
+  }
+
+  Future<void> refresh() async {
+    ref.invalidateSelf();
+  }
+}
+
+/// Which section of a profile's posts is being shown.
+enum ProfilePostsTab { uploaded, liked, reposted, marked, shared }
+
+/// Paginated posts for one tab of a profile screen (uploaded/liked/
+/// reposted/marked/shared), keyed by (uid, tab) so switching tabs keeps each
+/// one's pagination/scroll state independent — mirrors [FeedController].
+@riverpod
+class ProfilePostsController extends _$ProfilePostsController {
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+
+  bool get hasMore => _hasMore;
+  bool get isLoadingMore => _isLoadingMore;
+
+  Future<Result<List<PostEntity>>> _fetchPage(
+    String uid,
+    ProfilePostsTab tab, {
+    DateTime? startAfterCreatedAt,
+  }) {
+    switch (tab) {
+      case ProfilePostsTab.uploaded:
+        return ref
+            .read(getUserPostsUseCaseProvider)
+            .call(authorId: uid, startAfterCreatedAt: startAfterCreatedAt);
+      case ProfilePostsTab.liked:
+        return ref
+            .read(getUserLikedPostsUseCaseProvider)
+            .call(authorId: uid, startAfterCreatedAt: startAfterCreatedAt);
+      case ProfilePostsTab.reposted:
+        return ref
+            .read(getUserRepostedPostsUseCaseProvider)
+            .call(authorId: uid, startAfterCreatedAt: startAfterCreatedAt);
+      case ProfilePostsTab.marked:
+        return ref
+            .read(getUserBookmarkedPostsUseCaseProvider)
+            .call(authorId: uid, startAfterCreatedAt: startAfterCreatedAt);
+      case ProfilePostsTab.shared:
+        return ref
+            .read(getUserSharedPostsUseCaseProvider)
+            .call(authorId: uid, startAfterCreatedAt: startAfterCreatedAt);
+    }
+  }
+
+  @override
+  Future<List<PostEntity>> build(String uid, ProfilePostsTab tab) async {
+    _hasMore = true;
+    final result = await _fetchPage(uid, tab);
+    return switch (result) {
+      Ok(value: final posts) => posts,
+      Err(failure: final failure) => throw failure,
+    };
+  }
+
+  Future<void> loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    final current = state.value;
+    if (current == null || current.isEmpty) return;
+
+    _isLoadingMore = true;
+    final result = await _fetchPage(uid, tab, startAfterCreatedAt: current.last.createdAt);
+    _isLoadingMore = false;
+
+    switch (result) {
+      case Ok(value: final newPosts):
+        if (newPosts.length < AppConstants.feedPageSize) _hasMore = false;
+        state = AsyncData([...current, ...newPosts]);
+      case Err():
         break;
     }
   }
@@ -185,21 +290,38 @@ class BookmarkController extends _$BookmarkController {
   }
 }
 
-/// Repost state + count for one post, mirroring [LikeController].
+/// Repost state + count for one post. Unlike [LikeController]/
+/// [BookmarkController] this isn't a plain toggle: [repost] both starts a
+/// fresh repost and "upgrades" a plain repost to a quote (or edits an
+/// existing quote) by re-sending a comment, while [undoRepost] is the only
+/// way to remove one — the repost options sheet decides which to call based
+/// on the current state instead of guessing from a single tap.
 @riverpod
 class RepostController extends _$RepostController {
   @override
   ToggleState build(String postId, int initialCount, bool initialIsReposted) =>
       (initialIsReposted, initialCount);
 
-  Future<void> toggle() async {
+  Future<void> repost({String? comment}) async {
     final uid = ref.read(authStateProvider).value;
     if (uid == null) return;
 
     final (isActive, count) = state;
-    state = (!isActive, isActive ? count - 1 : count + 1);
+    state = (true, isActive ? count : count + 1);
 
-    final result = await ref.read(toggleRepostUseCaseProvider).call(postId: postId, uid: uid);
+    final result = await ref.read(addRepostUseCaseProvider).call(postId: postId, comment: comment);
+    if (result case Err()) state = (isActive, count);
+  }
+
+  Future<void> undoRepost() async {
+    final uid = ref.read(authStateProvider).value;
+    if (uid == null) return;
+
+    final (isActive, count) = state;
+    if (!isActive) return;
+    state = (false, count - 1);
+
+    final result = await ref.read(removeRepostUseCaseProvider).call(postId);
     if (result case Err()) state = (isActive, count);
   }
 }

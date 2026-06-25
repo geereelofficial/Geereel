@@ -14,12 +14,14 @@ class ChatListTile extends StatelessWidget {
   final ChatEntity chat;
   final bool isLastMessageMine;
   final VoidCallback onTap;
+  final VoidCallback onTapAvatar;
 
   const ChatListTile({
     super.key,
     required this.chat,
     required this.isLastMessageMine,
     required this.onTap,
+    required this.onTapAvatar,
   });
 
   @override
@@ -35,7 +37,14 @@ class ChatListTile extends StatelessWidget {
       onTap: onTap,
       tileColor: hasUnread ? AppColors.primary.withValues(alpha: 0.06) : null,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: _AvatarWithPresence(photoUrl: chat.otherPhotoUrl, isOnline: chat.otherIsOnline),
+      // A separate tap target from the row itself, so tapping the photo
+      // opens that person's profile while tapping the rest of the row
+      // (username, preview, timestamp) opens the chat as usual.
+      leading: GestureDetector(
+        onTap: onTapAvatar,
+        behavior: HitTestBehavior.opaque,
+        child: _AvatarWithPresence(photoUrl: chat.otherPhotoUrl, isOnline: chat.otherIsOnline),
+      ),
       title: Text(
         '@${chat.otherUsername}',
         maxLines: 1,

@@ -6,7 +6,7 @@ import 'app/router/app_router.dart';
 import 'app/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
-import 'features/notifications/presentation/notification_providers.dart';
+import 'features/notifications/presentation/providers/fcm_providers.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {

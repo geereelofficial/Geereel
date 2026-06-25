@@ -32,6 +32,7 @@ abstract class PostModel with _$PostModel {
     @Default(false) bool bookmarked,
     @Default(false) bool reposted,
     @Default(false) bool isFollowingAuthor,
+    String? repostComment,
   }) = _PostModel;
 
   factory PostModel.fromJson(Map<String, dynamic> json) => _$PostModelFromJson(json);
@@ -62,5 +63,6 @@ extension PostModelMapper on PostModel {
     bookmarked: bookmarked,
     reposted: reposted,
     isFollowingAuthor: isFollowingAuthor,
+    repostComment: repostComment,
   );
 }

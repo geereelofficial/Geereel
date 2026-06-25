@@ -88,7 +88,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           );
         },
         loading: () => const LoadingIndicator(),
-        error: (error, _) => ErrorView(message: error.toString()),
+        error: (error, _) => ErrorView(
+          message: error.toString(),
+          onRetry: () => ref.read(userSearchControllerProvider.notifier).search(_controller.text),
+        ),
       ),
     );
   }

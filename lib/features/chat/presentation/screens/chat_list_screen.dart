@@ -23,17 +23,21 @@ class ChatListScreen extends ConsumerWidget {
           if (chats.isEmpty) {
             return const Center(child: Text('No conversations yet.'));
           }
-          return ListView.separated(
-            itemCount: chats.length,
-            separatorBuilder: (_, _) => const Divider(height: 1, indent: 84),
-            itemBuilder: (context, index) {
-              final chat = chats[index];
-              return ChatListTile(
-                chat: chat,
-                isLastMessageMine: myUid != null && chat.lastMessageSenderId == myUid,
-                onTap: () => context.push('/chat/${chat.otherUserId}'),
-              );
-            },
+          return RefreshIndicator(
+            onRefresh: () async => ref.invalidate(myChatsProvider),
+            child: ListView.separated(
+              itemCount: chats.length,
+              separatorBuilder: (_, _) => const Divider(height: 1, indent: 84),
+              itemBuilder: (context, index) {
+                final chat = chats[index];
+                return ChatListTile(
+                  chat: chat,
+                  isLastMessageMine: myUid != null && chat.lastMessageSenderId == myUid,
+                  onTap: () => context.push('/chat/${chat.otherUserId}'),
+                  onTapAvatar: () => context.push('/profile/${chat.otherUserId}'),
+                );
+              },
+            ),
           );
         },
         loading: () => const LoadingIndicator(),

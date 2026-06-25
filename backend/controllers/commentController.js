@@ -2,6 +2,8 @@ const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const User = require('../models/User');
 const { ApiError } = require('../utils/ApiError');
+const { buildCursorQuery } = require('./postController');
+const { notify } = require('./notificationController');
 
 function toJson(comment) {
   return {
@@ -17,12 +19,11 @@ function toJson(comment) {
   };
 }
 
-// GET /api/posts/:postId/comments?limit=
+// GET /api/posts/:postId/comments?cursor=&limit=
 async function listComments(req, res) {
   const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
-  const comments = await Comment.find({ postId: req.params.postId })
-    .sort({ createdAt: -1 })
-    .limit(limit);
+  const query = buildCursorQuery({ postId: req.params.postId }, req.query.cursor);
+  const comments = await Comment.find(query).sort({ createdAt: -1 }).limit(limit);
   res.json(comments.map(toJson));
 }
 
@@ -52,6 +53,15 @@ async function addComment(req, res) {
   });
 
   await Post.updateOne({ _id: postId }, { $inc: { commentsCount: 1 } });
+
+  await notify({
+    recipientId: post.authorId,
+    actorId: req.uid,
+    actorUsername: author.username,
+    actorPhotoUrl: author.photoUrl,
+    type: 'comment',
+    postId,
+  });
 
   res.status(201).json(toJson(comment));
 }

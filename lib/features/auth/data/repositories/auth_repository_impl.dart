@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
@@ -130,6 +131,34 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Result<List<UserEntity>>> searchUsers(String query) async {
     try {
       final models = await _remote.searchUsers(query);
+      return Ok(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
+  Future<Result<List<UserEntity>>> getFollowers(
+    String uid, {
+    required int page,
+    int limit = AppConstants.followListPageSize,
+  }) async {
+    try {
+      final models = await _remote.getFollowers(uid, page: page, limit: limit);
+      return Ok(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
+  Future<Result<List<UserEntity>>> getFollowing(
+    String uid, {
+    required int page,
+    int limit = AppConstants.followListPageSize,
+  }) async {
+    try {
+      final models = await _remote.getFollowing(uid, page: page, limit: limit);
       return Ok(models.map((m) => m.toEntity()).toList());
     } catch (e) {
       return Err(_mapToFailure(e));

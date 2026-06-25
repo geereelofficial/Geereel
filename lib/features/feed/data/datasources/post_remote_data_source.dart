@@ -5,6 +5,8 @@ import '../../domain/entities/post_entity.dart';
 import '../models/post_model.dart';
 
 abstract class PostRemoteDataSource {
+  Future<PostModel> fetchPost(String postId);
+
   Future<List<PostModel>> fetchFeedPage({DateTime? startAfterCreatedAt, required int limit});
 
   Future<List<PostModel>> fetchFollowingFeedPage({DateTime? startAfterCreatedAt, required int limit});
@@ -15,11 +17,37 @@ abstract class PostRemoteDataSource {
     required int limit,
   });
 
+  Future<List<PostModel>> fetchUserLikedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    required int limit,
+  });
+
+  Future<List<PostModel>> fetchUserRepostedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    required int limit,
+  });
+
+  Future<List<PostModel>> fetchUserBookmarkedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    required int limit,
+  });
+
+  Future<List<PostModel>> fetchUserSharedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    required int limit,
+  });
+
   Future<void> toggleLike({required String postId, required String uid});
 
   Future<void> toggleBookmark({required String postId, required String uid});
 
-  Future<void> toggleRepost({required String postId, required String uid});
+  Future<void> addRepost({required String postId, String? comment});
+
+  Future<void> removeRepost(String postId);
 
   Future<void> incrementShareCount(String postId);
 
@@ -46,6 +74,12 @@ class ApiPostRemoteDataSource implements PostRemoteDataSource {
   ApiPostRemoteDataSource({required ApiClient apiClient, required CloudinaryUploader cloudinaryUploader})
     : _apiClient = apiClient,
       _cloudinaryUploader = cloudinaryUploader;
+
+  @override
+  Future<PostModel> fetchPost(String postId) async {
+    final response = await _apiClient.get('/posts/$postId');
+    return PostModel.fromJson(response.data as Map<String, dynamic>);
+  }
 
   @override
   Future<List<PostModel>> fetchFeedPage({
@@ -93,6 +127,70 @@ class ApiPostRemoteDataSource implements PostRemoteDataSource {
     return (response.data as List).map((json) => PostModel.fromJson(json as Map<String, dynamic>)).toList();
   }
 
+  @override
+  Future<List<PostModel>> fetchUserLikedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    required int limit,
+  }) async {
+    final response = await _apiClient.get(
+      '/posts/user/$authorId/liked',
+      query: {
+        'limit': limit,
+        if (startAfterCreatedAt != null) 'cursor': startAfterCreatedAt.toIso8601String(),
+      },
+    );
+    return (response.data as List).map((json) => PostModel.fromJson(json as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<List<PostModel>> fetchUserRepostedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    required int limit,
+  }) async {
+    final response = await _apiClient.get(
+      '/posts/user/$authorId/reposted',
+      query: {
+        'limit': limit,
+        if (startAfterCreatedAt != null) 'cursor': startAfterCreatedAt.toIso8601String(),
+      },
+    );
+    return (response.data as List).map((json) => PostModel.fromJson(json as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<List<PostModel>> fetchUserBookmarkedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    required int limit,
+  }) async {
+    final response = await _apiClient.get(
+      '/posts/user/$authorId/bookmarked',
+      query: {
+        'limit': limit,
+        if (startAfterCreatedAt != null) 'cursor': startAfterCreatedAt.toIso8601String(),
+      },
+    );
+    return (response.data as List).map((json) => PostModel.fromJson(json as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<List<PostModel>> fetchUserSharedPosts({
+    required String authorId,
+    DateTime? startAfterCreatedAt,
+    required int limit,
+  }) async {
+    final response = await _apiClient.get(
+      '/posts/user/$authorId/shared',
+      query: {
+        'limit': limit,
+        if (startAfterCreatedAt != null) 'cursor': startAfterCreatedAt.toIso8601String(),
+      },
+    );
+    return (response.data as List).map((json) => PostModel.fromJson(json as Map<String, dynamic>)).toList();
+  }
+
   Future<bool> _fetchIsLiked(String postId) async {
     final response = await _apiClient.get('/posts/$postId/liked');
     return (response.data as Map<String, dynamic>)['liked'] as bool;
@@ -123,19 +221,17 @@ class ApiPostRemoteDataSource implements PostRemoteDataSource {
     }
   }
 
-  Future<bool> _fetchIsReposted(String postId) async {
-    final response = await _apiClient.get('/posts/$postId/reposted');
-    return (response.data as Map<String, dynamic>)['reposted'] as bool;
+  @override
+  Future<void> addRepost({required String postId, String? comment}) async {
+    await _apiClient.post(
+      '/posts/$postId/repost',
+      data: comment != null && comment.isNotEmpty ? {'comment': comment} : null,
+    );
   }
 
   @override
-  Future<void> toggleRepost({required String postId, required String uid}) async {
-    final reposted = await _fetchIsReposted(postId);
-    if (reposted) {
-      await _apiClient.delete('/posts/$postId/repost');
-    } else {
-      await _apiClient.post('/posts/$postId/repost');
-    }
+  Future<void> removeRepost(String postId) async {
+    await _apiClient.delete('/posts/$postId/repost');
   }
 
   @override

@@ -3,13 +3,15 @@ import '../../../../core/utils/result.dart';
 import '../entities/comment_entity.dart';
 
 abstract class CommentRepository {
-  /// Live, newest-first comment list for [postId].
-  Stream<List<CommentEntity>> watchComments(
+  /// One page of comments, newest first. Pass [before] (the last comment's
+  /// `createdAt` from the previous page) to fetch the next page.
+  Future<Result<List<CommentEntity>>> fetchComments(
     String postId, {
     int limit = AppConstants.commentsPageSize,
+    DateTime? before,
   });
 
-  Future<Result<void>> addComment({
+  Future<Result<CommentEntity>> addComment({
     required String postId,
     required String authorId,
     required String authorUsername,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_text_styles.dart';
 import '../../../../core/utils/formatters.dart';
@@ -73,31 +74,47 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            AppAvatar(photoUrl: otherProfileAsync.value?.photoUrl, radius: 16),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('@${otherProfileAsync.value?.username ?? '...'}', style: AppTextStyles.username),
-                if (presenceLabel != null)
-                  Text(
-                    presenceLabel,
-                    style: AppTextStyles.caption.copyWith(
-                      color: matchingChat!.otherIsOnline ? AppColors.success : AppColors.textSecondary,
+        title: GestureDetector(
+          onTap: () => context.push('/profile/${widget.otherUserId}'),
+          behavior: HitTestBehavior.opaque,
+          child: Row(
+            children: [
+              AppAvatar(photoUrl: otherProfileAsync.value?.photoUrl, radius: 16),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '@${otherProfileAsync.value?.username ?? '...'}',
+                      style: AppTextStyles.username,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-              ],
-            ),
-          ],
+                    if (presenceLabel != null)
+                      Text(
+                        presenceLabel,
+                        style: AppTextStyles.caption.copyWith(
+                          color: matchingChat!.otherIsOnline ? AppColors.success : AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       body: chatIdAsync.when(
         data: (chatId) => _MessageList(chatId: chatId, textController: _textController, onSend: _send),
         loading: () => const LoadingIndicator(),
-        error: (error, _) => ErrorView(message: error.toString()),
+        error: (error, _) => ErrorView(
+          message: error.toString(),
+          onRetry: () => ref.invalidate(resolvedChatIdProvider(widget.otherUserId)),
+        ),
       ),
     );
   }

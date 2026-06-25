@@ -13,17 +13,23 @@ class CommentRepositoryImpl implements CommentRepository {
   const CommentRepositoryImpl(this._remote);
 
   @override
-  Stream<List<CommentEntity>> watchComments(
+  Future<Result<List<CommentEntity>>> fetchComments(
     String postId, {
     int limit = AppConstants.commentsPageSize,
-  }) {
-    return _remote
-        .watchComments(postId, limit: limit)
-        .map((models) => models.map((m) => m.toEntity()).toList());
+    DateTime? before,
+  }) async {
+    try {
+      final models = await _remote.getComments(postId, limit: limit, before: before);
+      return Ok(models.map((m) => m.toEntity()).toList());
+    } on ServerException catch (e) {
+      return Err(ServerFailure(e.message));
+    } catch (_) {
+      return const Err(UnknownFailure());
+    }
   }
 
   @override
-  Future<Result<void>> addComment({
+  Future<Result<CommentEntity>> addComment({
     required String postId,
     required String authorId,
     required String authorUsername,
@@ -31,14 +37,14 @@ class CommentRepositoryImpl implements CommentRepository {
     required String text,
   }) async {
     try {
-      await _remote.addComment(
+      final model = await _remote.addComment(
         postId: postId,
         authorId: authorId,
         authorUsername: authorUsername,
         authorPhotoUrl: authorPhotoUrl,
         text: text,
       );
-      return const Ok(null);
+      return Ok(model.toEntity());
     } on ServerException catch (e) {
       return Err(ServerFailure(e.message));
     } catch (_) {

@@ -24,5 +24,7 @@ router.delete('/:uid/fcm-tokens/:token', asyncHandler(userController.removeFcmTo
 router.post('/:uid/follow', asyncHandler(followController.follow));
 router.delete('/:uid/follow', asyncHandler(followController.unfollow));
 router.get('/:uid/is-following', asyncHandler(followController.isFollowing));
+router.get('/:uid/followers', asyncHandler(followController.getFollowers));
+router.get('/:uid/following', asyncHandler(followController.getFollowing));
 
 module.exports = router;
