@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: geereel-backend
+    name: geereel
     runtime: node
     rootDir: backend
     buildCommand: npm install
