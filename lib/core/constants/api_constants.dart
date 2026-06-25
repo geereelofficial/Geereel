@@ -7,7 +7,7 @@ class ApiConstants {
 
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:4000',
+    defaultValue: 'https://geereel-backend.onrender.com',
   );
 
   static const String apiPrefix = '$baseUrl/api';
