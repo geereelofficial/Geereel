@@ -90,15 +90,34 @@ class _HomeShellState extends ConsumerState<HomeShell> with RouteAware {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentVisualIndex,
         onTap: (index) => _onTap(context, index),
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: const Color(0xFF1A1A1A),
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: Colors.white60,
+        iconSize: 28,
+        selectedFontSize: 10,
+        unselectedFontSize: 10,
         items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          const BottomNavigationBarItem(icon: Icon(Icons.chat_bubble), label: 'Inbox'),
           const BottomNavigationBarItem(
-            icon: Icon(Icons.add_box, color: AppColors.primary, size: 32),
+            icon: Icon(Icons.home_rounded),
+            label: 'Home',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_rounded),
+            label: 'Inbox',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.add_box_rounded, color: AppColors.primary, size: 36),
             label: 'Post',
           ),
-          BottomNavigationBarItem(icon: _notificationsIcon(ref), label: 'Notifications'),
-          const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(
+            icon: _notificationsIcon(ref),
+            label: 'Notifications',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.person_rounded),
+            label: 'Profile',
+          ),
         ],
       ),
     );
