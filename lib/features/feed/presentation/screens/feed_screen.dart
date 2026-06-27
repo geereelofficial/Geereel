@@ -26,17 +26,15 @@ class FeedScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
+      body: Stack(
         children: [
+          _FeedPageView(key: ValueKey(selectedTab), tab: selectedTab),
           Container(
             color: const Color(0xFF1A1A1A),
             child: SafeArea(
               bottom: false,
               child: Column(children: [FeedTopBar(), StatusTray()]),
             ),
-          ),
-          Expanded(
-            child: _FeedPageView(key: ValueKey(selectedTab), tab: selectedTab),
           ),
         ],
       ),
