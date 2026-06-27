@@ -26,17 +26,24 @@ class FeedScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
+      body: Stack(
         children: [
-          ColoredBox(
-            color: const Color(0xFF1A1A1A),
-            child: SafeArea(
-              bottom: false,
-              child: Column(children: [FeedTopBar(), StatusTray()]),
-            ),
-          ),
-          Expanded(
+          // Video fills the full screen, visible even behind the status bar.
+          Positioned.fill(
             child: _FeedPageView(key: ValueKey(selectedTab), tab: selectedTab),
+          ),
+          // Dark top bar overlays from just below the status bar downward.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: ColoredBox(
+              color: const Color(0xFF1A1A1A),
+              child: SafeArea(
+                bottom: false,
+                child: Column(children: [FeedTopBar(), StatusTray()]),
+              ),
+            ),
           ),
         ],
       ),
