@@ -3,6 +3,22 @@ import 'package:flutter/material.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../feed/domain/entities/post_entity.dart';
 
+/// Returns the best available thumbnail URL for a post.
+/// For Cloudinary videos, the `.jpg` variant of the video URL is a
+/// server-generated still frame — no extra upload needed.
+String? _resolveThumb(PostEntity post) {
+  final thumb = post.thumbnailUrl;
+  if (thumb != null && thumb.isNotEmpty) return thumb;
+  if (post.mediaType == MediaType.image) return post.mediaUrl;
+  // Cloudinary: replace extension with .jpg to get the auto-generated poster frame.
+  final url = post.mediaUrl;
+  if (url.contains('cloudinary.com') && url.contains('/video/upload/')) {
+    final dot = url.lastIndexOf('.');
+    if (dot != -1) return '${url.substring(0, dot)}.jpg';
+  }
+  return null;
+}
+
 /// 3-column grid of a user's posts, TikTok-profile style.
 ///
 /// Scrolls on its own (rather than `shrinkWrap`ping inside an outer
@@ -53,28 +69,57 @@ class PostsGrid extends StatelessWidget {
       itemCount: posts.length,
       itemBuilder: (context, index) {
         final post = posts[index];
-        final thumbnailUrl = post.thumbnailUrl;
-        final imageUrl = thumbnailUrl != null && thumbnailUrl.isNotEmpty
-            ? thumbnailUrl
-            : (post.mediaType == MediaType.image ? post.mediaUrl : null);
+        final imageUrl = _resolveThumb(post);
 
         return GestureDetector(
           onTap: onTap == null ? null : () => onTap!(post),
           child: Stack(
             fit: StackFit.expand,
             children: [
-              ColoredBox(
-                color: AppColors.surface,
-                child: imageUrl == null
-                    ? const Icon(Icons.videocam, color: AppColors.textSecondary)
-                    : CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover),
-              ),
-              if (post.mediaType == MediaType.video)
-                const Positioned(
-                  left: 4,
-                  bottom: 4,
-                  child: Icon(Icons.play_arrow, color: Colors.white, size: 16),
+              if (imageUrl != null)
+                CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  placeholder: (_, __) => const ColoredBox(color: AppColors.surface),
+                  errorWidget: (_, __, ___) => const ColoredBox(color: AppColors.surface),
+                )
+              else
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF2A2A2A), Color(0xFF1A1A1A)],
+                    ),
+                  ),
                 ),
+              if (post.mediaType == MediaType.video) ...[
+                // Gradient so play icon is always readable.
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black54],
+                      stops: [0.4, 1.0],
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withValues(alpha: 0.45),
+                      border: Border.all(color: Colors.white70, width: 1.5),
+                    ),
+                    child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 22),
+                  ),
+                ),
+              ],
             ],
           ),
         );

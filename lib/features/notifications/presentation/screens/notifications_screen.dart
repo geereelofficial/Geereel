@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_indicator.dart';
+import '../../../../core/widgets/skeleton.dart';
 import '../../domain/entities/notification_entity.dart';
 import '../providers/notification_providers.dart';
 import '../widgets/notification_tile.dart';
@@ -149,7 +150,7 @@ class _NotificationListState extends ConsumerState<_NotificationList> {
           ),
         );
       },
-      loading: () => const LoadingIndicator(),
+      loading: () => const SingleChildScrollView(child: ListSkeletonLoader()),
       error: (error, _) => ErrorView(
         message: error.toString(),
         onRetry: () => ref.invalidate(provider),

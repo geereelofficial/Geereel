@@ -159,6 +159,7 @@ class _MessageList extends ConsumerWidget {
         ),
         SafeArea(
           top: false,
+          bottom: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: Row(

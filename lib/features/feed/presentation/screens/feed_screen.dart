@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/providers/navigation_providers.dart';
+import '../../../../core/utils/smooth_page_physics.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_indicator.dart';
+import '../../../../core/widgets/skeleton.dart';
 import '../../../status/presentation/widgets/status_tray.dart';
 import '../../domain/entities/post_entity.dart';
 import '../providers/feed_providers.dart';
@@ -32,17 +34,20 @@ class FeedScreen extends ConsumerWidget {
           Positioned.fill(
             child: _FeedPageView(key: ValueKey(selectedTab), tab: selectedTab),
           ),
-          // Dark top bar overlays from just below the status bar downward.
+          // Dark strip only for the status bar height; links float over the video.
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            child: ColoredBox(
-              color: const Color(0xFF1A1A1A),
-              child: SafeArea(
-                bottom: false,
-                child: Column(children: [FeedTopBar(), StatusTray()]),
-              ),
+            child: Column(
+              children: [
+                Container(
+                  color: const Color(0xFF1A1A1A),
+                  height: MediaQuery.of(context).padding.top,
+                ),
+                const FeedTopBar(),
+                const StatusTray(),
+              ],
             ),
           ),
         ],
@@ -184,6 +189,7 @@ class _FeedPageViewState extends ConsumerState<_FeedPageView> with WidgetsBindin
           child: PageView.builder(
             controller: _pageController,
             scrollDirection: Axis.vertical,
+            physics: const SmoothPagePhysics(parent: BouncingScrollPhysics()),
             itemCount: posts.length,
             onPageChanged: (index) => _onPageChanged(index, posts),
             itemBuilder: (context, index) {
@@ -197,7 +203,7 @@ class _FeedPageViewState extends ConsumerState<_FeedPageView> with WidgetsBindin
           ),
         );
       },
-      loading: () => const LoadingIndicator(),
+      loading: () => const FeedItemSkeleton(),
       error: (error, _) => ErrorView(
         message: 'Could not load the feed.\n$error',
         onRetry: () => ref.invalidate(feedControllerProvider(widget.tab)),

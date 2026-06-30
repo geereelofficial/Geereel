@@ -4,19 +4,17 @@ import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/providers/navigation_providers.dart';
+import '../../../../core/utils/smooth_page_physics.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_indicator.dart';
+import '../../../comments/presentation/widgets/comment_bottom_sheet.dart';
 import '../../../feed/domain/entities/post_entity.dart';
 import '../../../feed/presentation/providers/feed_providers.dart';
 import '../../../feed/presentation/widgets/video_feed_item.dart';
 
-/// Vertical, swipeable pager over one profile tab's posts (uploaded/liked/
-/// reposted) — opened by tapping a tile in [PostsGrid] so the user keeps
-/// scrolling through that profile's other videos/images instead of being
-/// stuck on the single tapped post. Mirrors the main feed's paging
-/// (preloaded adjacent video controllers, load-more near the end) but reads
-/// from [profilePostsControllerProvider] so it shares pagination state with
-/// the grid underneath it instead of re-fetching.
+/// Vertical, swipeable pager over one profile tab's posts — opened by tapping
+/// a tile in [PostsGrid]. Comments overlay floats on the video; a hint bar at
+/// the bottom opens the full white comment sheet on tap.
 class ProfilePostViewerScreen extends ConsumerStatefulWidget {
   final String uid;
   final ProfilePostsTab tab;
@@ -38,6 +36,8 @@ class _ProfilePostViewerScreenState extends ConsumerState<ProfilePostViewerScree
   final Map<int, VideoPlayerController> _controllers = {};
   int _currentIndex = 0;
   bool _isCovered = false;
+  String? _currentPostId;
+  int _currentCommentCount = 0;
 
   @override
   void didChangeDependencies() {
@@ -55,8 +55,6 @@ class _ProfilePostViewerScreenState extends ConsumerState<ProfilePostViewerScree
     super.dispose();
   }
 
-  // A further screen (e.g. a profile pushed by tapping the avatar/username
-  // overlay) was pushed on top of this one.
   @override
   void didPushNext() {
     _isCovered = true;
@@ -83,6 +81,8 @@ class _ProfilePostViewerScreenState extends ConsumerState<ProfilePostViewerScree
     if (_pageController != null) return;
     final index = posts.indexWhere((post) => post.postId == widget.initialPostId);
     _currentIndex = index == -1 ? 0 : index;
+    _currentPostId = posts[_currentIndex].postId;
+    _currentCommentCount = posts[_currentIndex].commentsCount;
     _pageController = PageController(initialPage: _currentIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _syncControllers(posts);
@@ -125,7 +125,11 @@ class _ProfilePostViewerScreenState extends ConsumerState<ProfilePostViewerScree
   }
 
   void _onPageChanged(int index, List<PostEntity> posts) {
-    setState(() => _currentIndex = index);
+    setState(() {
+      _currentIndex = index;
+      _currentPostId = posts[index].postId;
+      _currentCommentCount = posts[index].commentsCount;
+    });
     _syncControllers(posts);
     ref.read(postRepositoryProvider).incrementViewCount(posts[index].postId);
 
@@ -137,6 +141,7 @@ class _ProfilePostViewerScreenState extends ConsumerState<ProfilePostViewerScree
   @override
   Widget build(BuildContext context) {
     final postsAsync = ref.watch(profilePostsControllerProvider(widget.uid, widget.tab));
+    final statusBarHeight = MediaQuery.of(context).padding.top;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -152,6 +157,7 @@ class _ProfilePostViewerScreenState extends ConsumerState<ProfilePostViewerScree
               PageView.builder(
                 controller: _pageController,
                 scrollDirection: Axis.vertical,
+                physics: const SmoothPagePhysics(parent: BouncingScrollPhysics()),
                 itemCount: posts.length,
                 onPageChanged: (index) => _onPageChanged(index, posts),
                 itemBuilder: (context, index) {
@@ -160,16 +166,66 @@ class _ProfilePostViewerScreenState extends ConsumerState<ProfilePostViewerScree
                     post: post,
                     controller: post.mediaType == MediaType.video ? _controllers[index] : null,
                     isActive: index == _currentIndex,
+                    contentBottomOffset: 40,
                   );
                 },
               ),
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => context.canPop() ? context.pop() : context.go('/feed'),
+              // Full-width dark strip at the very bottom with the frosted comment
+              // field sitting inside it. Right padding reserves space so the field
+              // doesn't extend under the action-buttons column.
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  color: AppColors.background,
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 100, 8),
+                      child: GestureDetector(
+                        onTap: _currentPostId == null
+                            ? null
+                            : () => showCommentBottomSheet(
+                                  context,
+                                  postId: _currentPostId!,
+                                  initialCommentCount: _currentCommentCount,
+                                ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.mode_comment_outlined, color: AppColors.textSecondary, size: 18),
+                              SizedBox(width: 10),
+                              Text(
+                                'Add a comment...',
+                                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
+                ),
+              ),
+              // Dark strip only behind the status bar.
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(color: const Color(0xFF1A1A1A), height: statusBarHeight),
+              ),
+              Positioned(
+                top: statusBarHeight,
+                left: 0,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => context.canPop() ? context.pop() : context.go('/feed'),
                 ),
               ),
             ],

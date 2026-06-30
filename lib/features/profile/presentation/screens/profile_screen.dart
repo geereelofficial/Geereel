@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_indicator.dart';
@@ -113,11 +114,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: SizedBox(
-                        height: 36,
+                        height: 40,
                         child: _isOwnProfile
-                            ? OutlinedButton(
-                                onPressed: () => context.push('/edit-profile'),
-                                child: const Text('Edit Profile'),
+                            ? Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () => context.push('/edit-profile'),
+                                      child: const Text('Edit Profile'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => SharePlus.instance.share(
+                                        ShareParams(
+                                          text: 'Check out my profile on Geereel!\ngeereel:///profile/${widget.uid}',
+                                        ),
+                                      ),
+                                      icon: const Icon(Icons.share_outlined, size: 16),
+                                      label: const Text('Share'),
+                                    ),
+                                  ),
+                                ],
                               )
                             : Row(
                                 children: [

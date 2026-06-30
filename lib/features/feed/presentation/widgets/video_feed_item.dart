@@ -20,12 +20,16 @@ class VideoFeedItem extends StatelessWidget {
   final PostEntity post;
   final VideoPlayerController? controller;
   final bool isActive;
+  /// Extra bottom space (in logical pixels) to push the description and action
+  /// buttons above a hint bar or any other widget sitting at the screen bottom.
+  final double contentBottomOffset;
 
   const VideoFeedItem({
     super.key,
     required this.post,
     required this.controller,
     required this.isActive,
+    this.contentBottomOffset = 0,
   });
 
   void _togglePlayback() {
@@ -50,7 +54,7 @@ class VideoFeedItem extends StatelessWidget {
           Positioned(
             left: 16,
             right: 88,
-            bottom: 24,
+            bottom: 24 + contentBottomOffset,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -63,7 +67,7 @@ class VideoFeedItem extends StatelessWidget {
           ),
           Positioned(
             right: 12,
-            bottom: 24,
+            bottom: 24 + contentBottomOffset,
             child: FeedActionButtons(post: post),
           ),
           _PauseIndicator(controller: controller),
