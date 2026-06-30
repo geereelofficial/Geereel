@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "121909559512",
+    "firebase_url": "https://geereel-default-rtdb.firebaseio.com",
     "project_id": "geereel",
     "storage_bucket": "geereel.firebasestorage.app"
   },
@@ -12,7 +13,20 @@
           "package_name": "com.geereel.geereel"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "121909559512-ip5k43ff12mu8lfia3irfo05d6gogqk6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.geereel.geereel",
+            "certificate_hash": "97f65a98d2eb96d3d3bffef41782734164d9fe03"
+          }
+        },
+        {
+          "client_id": "121909559512-bk5efgduf6r9oob6qp0m3kni456tas4h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBncQA2mwq1SgJEjH3Cg3Da2hYQrheTnOA"
@@ -20,7 +34,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "121909559512-bk5efgduf6r9oob6qp0m3kni456tas4h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

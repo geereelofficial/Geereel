@@ -243,6 +243,7 @@ class AuthController extends _$AuthController {
   Future<void> signOut() async {
     state = const AsyncLoading();
     final result = await ref.read(signOutUseCaseProvider).call();
+    if (!ref.mounted) return;
     switch (result) {
       case Ok():
         state = const AsyncData(null);
@@ -252,6 +253,7 @@ class AuthController extends _$AuthController {
   }
 
   bool _handle(Result result) {
+    if (!ref.mounted) return result is Ok;
     switch (result) {
       case Ok():
         state = const AsyncData(null);

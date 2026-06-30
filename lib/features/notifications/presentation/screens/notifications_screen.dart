@@ -150,7 +150,7 @@ class _NotificationListState extends ConsumerState<_NotificationList> {
           ),
         );
       },
-      loading: () => const SingleChildScrollView(child: ListSkeletonLoader()),
+      loading: () => const ListSkeletonLoader(),
       error: (error, _) => ErrorView(
         message: error.toString(),
         onRetry: () => ref.invalidate(provider),
