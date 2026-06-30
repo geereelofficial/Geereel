@@ -3,7 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/providers/navigation_providers.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
+import '../../core/providers/onboarding_provider.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/onboarding_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/chat/presentation/screens/chat_list_screen.dart';
@@ -48,24 +51,35 @@ GoRouter goRouter(Ref ref) {
       final authState = ref.read(authStateProvider);
       final path = state.matchedLocation;
       final isSplash = path == '/splash';
-      final isAuthRoute = path == '/login' || path == '/signup';
+      final isOnboarding = path == '/onboarding';
+      final isAuthRoute = path == '/login' ||
+          path == '/signup' ||
+          path == '/forgot-password';
 
       if (authState.isLoading && !authState.hasValue) {
         return isSplash ? null : '/splash';
       }
 
       final isLoggedIn = authState.value != null;
+
       if (!isLoggedIn) {
-        return isAuthRoute ? null : '/login';
+        if (isOnboarding) return null;
+        final seen = ref.read(onboardingSeenProvider);
+        if (!seen) return '/onboarding';
+        if (isAuthRoute) return null;
+        return '/login';
       }
 
-      if (isAuthRoute || isSplash) return '/feed';
+      // Logged in — bounce away from auth/onboarding screens
+      if (isAuthRoute || isSplash || isOnboarding) return '/feed';
       return null;
     },
     routes: [
       GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
+      GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/signup', builder: (context, state) => const SignupScreen()),
+      GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
       GoRoute(
         path: '/upload',
         builder: (context, state) => const UploadScreen(),

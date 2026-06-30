@@ -82,7 +82,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   obscureText: true,
                   validator: Validators.password,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => context.push('/forgot-password'),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('Forgot password?'),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 PrimaryButton(label: 'Log In', onPressed: _submit, isLoading: isLoading),
                 const SizedBox(height: 16),
                 Row(

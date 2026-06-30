@@ -67,8 +67,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               children: [
                 AuthTextField(
                   controller: _displayNameController,
-                  label: 'Display name',
-                  validator: (v) => Validators.notEmpty(v, fieldName: 'Display name'),
+                  label: 'Full name',
+                  validator: (v) => Validators.notEmpty(v, fieldName: 'Full name'),
                 ),
                 const SizedBox(height: 16),
                 AuthTextField(

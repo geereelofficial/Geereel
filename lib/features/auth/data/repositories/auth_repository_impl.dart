@@ -99,6 +99,16 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Result<void>> forgotPassword(String email) async {
+    try {
+      await _remote.forgotPassword(email);
+      return const Ok(null);
+    } catch (e) {
+      return Err(_mapToFailure(e));
+    }
+  }
+
+  @override
   Future<Result<void>> followUser(String targetUid) async {
     try {
       await _remote.followUser(targetUid);

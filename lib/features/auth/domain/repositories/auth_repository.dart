@@ -50,6 +50,10 @@ abstract class AuthRepository {
   /// Whether the signed-in caller already follows [targetUid].
   Future<Result<bool>> isFollowing(String targetUid);
 
+  /// Sends a password-reset email to [email]. Always succeeds silently
+  /// (no error if the email isn't registered) to prevent enumeration.
+  Future<Result<void>> forgotPassword(String email);
+
   /// Searches users by username/display name, excluding the caller.
   Future<Result<List<UserEntity>>> searchUsers(String query);
 

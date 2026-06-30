@@ -32,6 +32,8 @@ abstract class AuthRemoteDataSource {
 
   Future<String> uploadAvatar({required String uid, required File file});
 
+  Future<void> forgotPassword(String email);
+
   Future<void> followUser(String targetUid);
 
   Future<void> unfollowUser(String targetUid);
@@ -185,6 +187,11 @@ class ApiAuthRemoteDataSource implements AuthRemoteDataSource {
     await _apiClient.post('/users/$uid/avatar', data: {'photoUrl': url});
     await _firebaseAuth.currentUser?.updatePhotoURL(url);
     return url;
+  }
+
+  @override
+  Future<void> forgotPassword(String email) async {
+    await _apiClient.post('/auth/forgot-password', data: {'email': email});
   }
 
   @override
